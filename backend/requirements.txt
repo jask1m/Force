@@ -1,0 +1,11 @@
+llama-index-core
+llama-index-utils-workflow
+llama-index-llms-openai
+llama-parse
+llama-index-embeddings-openai
+llama-index-readers-whisper
+gradio
+python-dotenv
+nest_asyncio
+fastapi
+uvicorn
