@@ -18,37 +18,57 @@ interface DocumentType {
   size: number;
   date: string;
   path?: string;
+  type: "application" | "supporting"; // Document type
   extractedFields?: Record<string, any>;
 }
 
 export default function DocumentsPage() {
   const [documents, setDocuments] = useState<File[]>([]);
+  const [documentType, setDocumentType] = useState<"application" | "supporting">("application");
   const [uploading, setUploading] = useState(false);
   const [uploadedDocs, setUploadedDocs] = useState<DocumentType[]>([]);
   const [extracting, setExtracting] = useState<Record<string, boolean>>({});
+  const [applicationDocs, setApplicationDocs] = useState<DocumentType[]>([]);
+  const [supportingDocs, setSupportingDocs] = useState<DocumentType[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Fetch existing documents on component mount
   useEffect(() => {
-    const fetchDocuments = async () => {
-      try {
-        const response = await fetch('/api/list-documents');
-        if (!response.ok) {
-          throw new Error('Failed to fetch documents');
-        }
-
-        const data = await response.json();
-        if (data.documents) {
-          console.log(data.documents);
-          setUploadedDocs(data.documents);
-        }
-      } catch (error) {
-        console.error('Error fetching documents:', error);
-      }
-    };
-
     fetchDocuments();
   }, []);
+
+  // Update application and supporting docs whenever uploadedDocs changes
+  useEffect(() => {
+    setApplicationDocs(uploadedDocs.filter(doc => doc.type === "application"));
+    setSupportingDocs(uploadedDocs.filter(doc => doc.type === "supporting"));
+  }, [uploadedDocs]);
+
+  const fetchDocuments = async () => {
+    try {
+      const response = await fetch('/api/list-documents');
+      if (!response.ok) {
+        throw new Error('Failed to fetch documents');
+      }
+
+      const data = await response.json();
+      if (data.documents) {
+        console.log("Fetched documents:", data.documents);
+
+        // Ensure each document has a type property
+        const docsWithTypes = data.documents.map((doc: any) => {
+          if (!doc.type) {
+            // If type is missing, try to determine from other properties or default to "supporting"
+            return { ...doc, type: doc.isApplicationForm ? "application" : "supporting" };
+          }
+          return doc;
+        });
+
+        setUploadedDocs(docsWithTypes);
+      }
+    } catch (error) {
+      console.error('Error fetching documents:', error);
+    }
+  };
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files.length > 0) {
@@ -74,6 +94,8 @@ export default function DocumentsPage() {
       documents.forEach((file) => {
         formData.append('documents', file);
       });
+      // Add document type to form data
+      formData.append('documentType', documentType);
 
       // Upload to backend
       const response = await fetch('/api/upload-documents', {
@@ -88,11 +110,19 @@ export default function DocumentsPage() {
       // Get uploaded documents from response
       const result = await response.json();
 
-      // Refresh the document list
-      const refreshResponse = await fetch('/api/list-documents');
-      if (refreshResponse.ok) {
-        const refreshData = await refreshResponse.json();
-        setUploadedDocs(refreshData.documents);
+      // Add newly uploaded documents to the state immediately
+      if (result.documents) {
+        const newDocs = result.documents.map((doc: any) => ({
+          ...doc,
+          id: `doc-${doc.name.replace(/\s+/g, '-')}`,
+          date: new Date().toLocaleDateString(),
+          type: documentType // Ensure the type is set correctly based on the current documentType
+        }));
+
+        setUploadedDocs(prev => [...prev, ...newDocs]);
+      } else {
+        // Refresh the document list if we don't have the uploaded documents in the response
+        await fetchDocuments();
       }
 
       // Clear the selected documents after successful upload
@@ -106,7 +136,8 @@ export default function DocumentsPage() {
     }
   };
 
-  const triggerFileInput = () => {
+  const triggerFileInput = (type: "application" | "supporting") => {
+    setDocumentType(type);
     if (fileInputRef.current) {
       fileInputRef.current.click();
     }
@@ -118,7 +149,7 @@ export default function DocumentsPage() {
         <div>
           <h1 className="text-3xl font-bold mb-2">My Documents</h1>
           <p className="text-muted-foreground">
-            View and manage your processed documents.
+            View and manage your application forms and supporting documents.
           </p>
         </div>
       </div>
@@ -126,7 +157,7 @@ export default function DocumentsPage() {
       {documents.length > 0 && (
         <Card className="mb-6">
           <CardHeader>
-            <CardTitle>Selected Files</CardTitle>
+            <CardTitle>Selected Files ({documentType === "application" ? "Application Forms" : "Supporting Documents"})</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
@@ -153,11 +184,12 @@ export default function DocumentsPage() {
         </Card>
       )}
 
+      {/* Application Forms Card */}
       <Card>
         <CardHeader>
-          <CardTitle>Documents</CardTitle>
+          <CardTitle>Application Forms</CardTitle>
           <CardDescription>
-            All your processed documents
+            Upload and manage your visa application forms
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -172,21 +204,9 @@ export default function DocumentsPage() {
               accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png"
             />
 
-            {uploadedDocs.length > 0 ? (
-              <>
-                <div className="flex justify-center mb-6">
-                  <Button variant="outline" className="mr-2" onClick={triggerFileInput}>
-                    <Upload className="h-4 w-4 mr-2" />
-                    Select Files
-                  </Button>
-                  <Button
-                    onClick={uploadDocuments}
-                    disabled={documents.length === 0 || uploading}
-                  >
-                    {uploading ? 'Uploading...' : 'Upload Documents'}
-                  </Button>
-                </div>
-                {uploadedDocs.map((doc, index) => (
+            {applicationDocs.length > 0 ? (
+              <div className="space-y-4">
+                {applicationDocs.map((doc, index) => (
                   <div key={index} className="flex items-center justify-between p-3 border border-border rounded-md">
                     <div className="flex items-center">
                       <FileText className="h-5 w-5 mr-2 text-primary" />
@@ -217,14 +237,14 @@ export default function DocumentsPage() {
                                 'Content-Type': 'application/json',
                               },
                               body: JSON.stringify({
-                                visa_form_path: `data/documents/${doc.name}`
+                                visa_form_path: `data/documents/applications/${doc.name}`
                               })
                             });
-                            
+
                             if (!response.ok) {
                               throw new Error('Failed to extract fields');
                             }
-                            
+
                             const data = await response.json();
                             setUploadedDocs(prev =>
                               prev.map(d =>
@@ -246,28 +266,98 @@ export default function DocumentsPage() {
                     </div>
                   </div>
                 ))}
-              </>
+              </div>
             ) : (
-              <div className="text-center py-12">
+              <div className="text-center py-8">
                 <FileText className="h-12 w-12 mx-auto text-muted-foreground" />
-                <h3 className="mt-4 text-lg font-medium">No documents yet</h3>
+                <h3 className="mt-4 text-lg font-medium">No application forms yet</h3>
                 <p className="mt-2 text-muted-foreground">
-                  Documents you upload will appear here.
+                  Application forms you upload will appear here.
                 </p>
-                <div className="flex justify-center mt-6">
-                  <Button variant="outline" className="mr-2" onClick={triggerFileInput}>
-                    <Upload className="h-4 w-4 mr-2" />
-                    Select Files
-                  </Button>
-                  <Button
-                    onClick={uploadDocuments}
-                    disabled={documents.length === 0 || uploading}
-                  >
-                    {uploading ? 'Uploading...' : 'Upload Documents'}
-                  </Button>
-                </div>
               </div>
             )}
+
+            <div className="flex justify-center mt-6">
+              <Button variant="outline" className="mr-2" onClick={() => triggerFileInput("application")}>
+                <Upload className="h-4 w-4 mr-2" />
+                Select Application Forms
+              </Button>
+              <Button
+                onClick={() => {
+                  // Force documentType to "application" before uploading
+                  setDocumentType("application");
+                  uploadDocuments();
+                }}
+                disabled={documents.length === 0 || uploading}
+              >
+                {uploading ? 'Uploading...' : 'Upload as Application Form'}
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Supporting Documents Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Supporting Documents</CardTitle>
+          <CardDescription>
+            Upload and manage your supporting documents (passport, ID, etc.)
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {supportingDocs.length > 0 ? (
+              <div className="space-y-4">
+                {supportingDocs.map((doc, index) => (
+                  <div key={index} className="flex items-center justify-between p-3 border border-border rounded-md">
+                    <div className="flex items-center">
+                      <FileText className="h-5 w-5 mr-2 text-primary" />
+                      <div>
+                        <span className="font-medium">{doc.name}</span>
+                        <div className="text-xs text-muted-foreground">
+                          {(doc.size / 1024).toFixed(1)} KB • Uploaded on {doc.date}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => window.location.href = '/dashboard'}
+                      >
+                        Select for Processing
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <FileText className="h-12 w-12 mx-auto text-muted-foreground" />
+                <h3 className="mt-4 text-lg font-medium">No supporting documents yet</h3>
+                <p className="mt-2 text-muted-foreground">
+                  Supporting documents you upload will appear here.
+                </p>
+              </div>
+            )}
+
+            <div className="flex justify-center">
+              <Button variant="outline" className="mr-2" onClick={() => triggerFileInput("supporting")}>
+                <Upload className="h-4 w-4 mr-2" />
+                Select Supporting Documents
+              </Button>
+              <Button
+                onClick={() => {
+                  // Force documentType to "supporting" before uploading
+                  setDocumentType("supporting");
+                  uploadDocuments();
+                }}
+                disabled={documents.length === 0 || uploading}
+              >
+                {uploading ? 'Uploading...' : 'Upload as Supporting Document'}
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
