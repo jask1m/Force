@@ -10,12 +10,12 @@ load_dotenv()
 router = APIRouter()
 
 class ProcessFormRequest(BaseModel):
-    """Request model for processing a visa application form"""
+    """Request model for processing a medical information form"""
     input_path: str
     input_path_id: str
     document_path: str
     use_existing_index: bool = True
-    visa_filter_ids: List[str]
+    input_filter_ids: List[str]
 
 @router.post("/process-form")
 async def process_form(

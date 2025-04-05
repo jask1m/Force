@@ -27,7 +27,7 @@ openai_api_key = get_openai_api_key()
 google_api_key = get_google_api_key()
 
 class ParseFormEvent(Event):
-  application_form: str
+  document_path: str
 
 class QueryEvent(Event):
   query: str
@@ -135,7 +135,7 @@ class RAGWorkflow(Workflow):
             api_key=llama_cloud_api_key,
             base_url=os.getenv("LLAMA_CLOUD_BASE_URL"),
             result_type="markdown",
-            content_guideline_instruction="This is a visa application form. Create a list of all the fields that need to be filled in.",
+            content_guideline_instruction="This is a medical information form. Create a list of all the fields that need to be filled in.",
             system_prompt="Return a bulleted list of the fields ONLY."
         )
 
@@ -168,7 +168,7 @@ class RAGWorkflow(Workflow):
         input_context = "the input documents" if len(input_filter_ids) > 1 else "the specific input document"
         
         response = self.query_engine.query(
-            f"This is a question about {visa_context} we have in our database: {ev.query}"
+            f"This is a question about {input_context} we have in our database: {ev.query}"
         )
         return ResponseEvent(field=ev.field, response=response.response)
 
