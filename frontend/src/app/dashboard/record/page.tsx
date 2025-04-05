@@ -18,12 +18,14 @@ export default function Page() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [recordedChunks, setRecordedChunks] = useState<Blob[]>([]);
+  const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [analysisResults, setAnalysisResults] = useState<string | null>(null);
 
   const startCamera = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: true,
-        audio: false,
+        audio: true,
       });
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
@@ -100,10 +102,42 @@ export default function Page() {
   };
 
   // Handle video upload and analysis
-  const handleUpload = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleUpload = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // Implement your upload logic here (e.g., send to server, run analysis, etc.)
-    console.log("Video uploaded for analysis");
+
+    if (!videoFile) {
+      console.error("No video file selected");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("video", videoFile);
+
+    try {
+      const response = await fetch(
+        "http://localhost:8000/gemini/analyze-video",
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      setAnalysisResults(JSON.stringify(data, null, 2));
+    } catch (error) {
+      console.error("Error uploading video:", error);
+      setAnalysisResults("Error analyzing video. Please try again.");
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setVideoFile(e.target.files[0]);
+    }
   };
 
   return (
@@ -122,8 +156,8 @@ export default function Page() {
             <video
               ref={videoRef}
               className="rounded-md border"
-              autoPlay
               muted
+              autoPlay
               playsInline
               width={400}
               height={300}
@@ -163,7 +197,7 @@ export default function Page() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleUpload} className="flex flex-col gap-2">
-              <Input type="file" accept="video/*" />
+              <Input type="file" accept="video/*" onChange={handleFileChange} />
               <Button type="submit">Upload &amp; Analyze</Button>
             </form>
           </CardContent>
@@ -177,11 +211,16 @@ export default function Page() {
             <CardTitle>Analysis Results</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col h-full">
-            <p className="text-sm text-muted-foreground">
-              No results yet. Either upload a video or connect to the camera
-              stream.
-            </p>
-            {/* Once you have analysis results, you can display them here */}
+            {analysisResults ? (
+              <div className="whitespace-pre-wrap font-mono text-sm">
+                {analysisResults}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                No results yet. Either upload a video or connect to the camera
+                stream.
+              </p>
+            )}
           </CardContent>
         </Card>
       </div>
