@@ -3,7 +3,7 @@ from fastapi.responses import JSONResponse
 from typing import Dict, Any, List
 from pydantic import BaseModel
 from dotenv import load_dotenv
-from workflow import RAGWorkflow
+from workflow import RAGWorkflow, get_llama_parser
 
 load_dotenv()
 
@@ -54,3 +54,26 @@ async def process_form(
                 "error": str(e)
             }
         )
+
+class ParseFieldsRequest(BaseModel):
+    visa_form_path: str
+
+@router.post("/parse-fields")
+async def parse_fields(request: ParseFieldsRequest):
+    llama_parser = get_llama_parser()
+    try:
+        res = llama_parser.load_data(request.visa_form_path)[0]
+        return {
+            "success": True,
+            "result": res.text
+        }
+    except Exception as e:
+        print("Error parsing fields:", e)
+        return JSONResponse(
+            status_code=500,
+            content={
+                "success": False,
+                "error": str(e)
+            }
+        )
+    

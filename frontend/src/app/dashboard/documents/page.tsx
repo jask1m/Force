@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
+import ReactMarkdown from "react-markdown";
 import {
   Card,
   CardContent,
@@ -17,12 +18,14 @@ interface DocumentType {
   size: number;
   date: string;
   path?: string;
+  extractedFields?: Record<string, any>;
 }
 
 export default function DocumentsPage() {
   const [documents, setDocuments] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
   const [uploadedDocs, setUploadedDocs] = useState<DocumentType[]>([]);
+  const [extracting, setExtracting] = useState<Record<string, boolean>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Fetch existing documents on component mount
@@ -36,6 +39,7 @@ export default function DocumentsPage() {
 
         const data = await response.json();
         if (data.documents) {
+          console.log(data.documents);
           setUploadedDocs(data.documents);
         }
       } catch (error) {
@@ -192,6 +196,53 @@ export default function DocumentsPage() {
                           {(doc.size / 1024).toFixed(1)} KB • Uploaded on {doc.date}
                         </div>
                       </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {doc.extractedFields && (
+                        <div className="mt-4 text-sm text-muted-foreground w-full">
+                          <div className="bg-muted p-4 rounded-md prose prose-sm max-w-none">
+                            <ReactMarkdown>{doc.extractedFields.result}</ReactMarkdown>
+                          </div>
+                        </div>
+                      )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={async () => {
+                          try {
+                            setExtracting(prev => ({ ...prev, [doc.id]: true }));
+                            const response = await fetch('http://localhost:8000/llama/parse-fields', {
+                              method: 'POST',
+                              headers: {
+                                'Content-Type': 'application/json',
+                              },
+                              body: JSON.stringify({
+                                visa_form_path: `data/documents/${doc.name}`
+                              })
+                            });
+                            
+                            if (!response.ok) {
+                              throw new Error('Failed to extract fields');
+                            }
+                            
+                            const data = await response.json();
+                            setUploadedDocs(prev =>
+                              prev.map(d =>
+                                d.id === doc.id
+                                  ? { ...d, extractedFields: data }
+                                  : d
+                              )
+                            );
+                          } catch (error) {
+                            console.error('Error extracting fields:', error);
+                          } finally {
+                            setExtracting(prev => ({ ...prev, [doc.id]: false }));
+                          }
+                        }}
+                        disabled={extracting[doc.id]}
+                      >
+                        {extracting[doc.id] ? 'Extracting...' : 'Extract Fields'}
+                      </Button>
                     </div>
                   </div>
                 ))}

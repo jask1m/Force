@@ -192,3 +192,14 @@ class RAGWorkflow(Workflow):
             </responses>
         """)
         return StopEvent(result=result.text)
+
+
+def get_llama_parser():
+  parser = LlamaParse(
+    api_key=llama_cloud_api_key,
+    base_url=os.getenv("LLAMA_CLOUD_BASE_URL"),
+    result_type="markdown",
+    content_guideline_instruction="This is a visa application form. Create a list of all the fields that need to be filled in.",
+    system_prompt="Return a bulleted list of the fields ONLY."
+  )
+  return parser
