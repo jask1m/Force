@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import DashboardSidebar from "@/components/DashboardSidebar";
 import { cn } from "@/lib/utils";
+import Header from "@/components/Header";
 
 export default function DashboardLayout({
   children,
@@ -32,6 +33,7 @@ export default function DashboardLayout({
         )}
 
         <main className="p-6">
+          <Header />
           {children}
         </main>
       </div>
