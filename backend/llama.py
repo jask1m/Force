@@ -11,9 +11,9 @@ router = APIRouter()
 
 class ProcessFormRequest(BaseModel):
     """Request model for processing a visa application form"""
-    visa_info: str
-    visa_id: str
-    application_form: str
+    input_path: str
+    input_path_id: str
+    document_path: str
     use_existing_index: bool = True
     visa_filter_ids: List[str]
 
@@ -25,20 +25,20 @@ async def process_form(
     Process a visa application form using LlamaIndex.
     
     Parameters:
-    - visa_info: Path or content of the visa information document
-    - visa_id: Unique identifier for this visa document
-    - application_form: Path to the application form to be filled
+    - input_path: Path to the medical information document of the person
+    - input_path_id: Unique identifier for the document
+    - document_path: Path to the application form to be filled
     - use_existing_index: Whether to use existing index if available
-    - visa_filter_ids: List of visa IDs to query against
+    - input_filter_ids: List of document IDs to query against
     """
     try:
         workflow = RAGWorkflow(timeout=120, verbose=False)
         result = await workflow.run(
-            visa_info=request.visa_info,
-            visa_id=request.visa_id,
-            application_form=request.application_form,
+            input_path=request.input_path,
+            input_path_id=request.input_path_id,
+            document_path=request.document_path,
             use_existing_index=request.use_existing_index,
-            visa_filter_ids=request.visa_filter_ids
+            input_filter_ids=request.input_filter_ids
         )
         
         return {

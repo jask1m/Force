@@ -46,21 +46,21 @@ class RAGWorkflow(Workflow):
     @step
     async def set_up(self, ctx: Context, ev: StartEvent) -> ParseFormEvent:
 
-        if not ev.visa_info:
-            raise ValueError("No visa info provided")
+        if not ev.input_path:
+            raise ValueError("No input path provided")
 
-        if not ev.application_form:
-            raise ValueError("No application form provided")
+        if not ev.document_path:
+            raise ValueError("No document path provided")
 
-        visa_id = getattr(ev, "visa_id", "default")
+        input_path_id = getattr(ev, "input_path_id", "default")
         use_existing_index = getattr(ev, "use_existing_index", True)
-        visa_filter_ids = getattr(ev, "visa_filter_ids", [visa_id])
+        input_filter_ids = getattr(ev, "input_filter_ids", [input_path_id])
         
-        # Store visa filter IDs for use in querying
-        await ctx.set("visa_filter_ids", visa_filter_ids)
+        # Store input filter IDs for use in querying
+        await ctx.set("input_filter_ids", input_filter_ids)
         
         # Create storage directory for this specific visa document
-        self.storage_dir = os.path.join(self.base_storage_dir, visa_id)
+        self.storage_dir = os.path.join(self.base_storage_dir, input_path_id)
 
         self.llm = Gemini(
             model="models/gemini-1.5-flash",
@@ -72,19 +72,19 @@ class RAGWorkflow(Workflow):
             storage_context = StorageContext.from_defaults(persist_dir=self.storage_dir)
             index = load_index_from_storage(storage_context)
         else:
-            # parse and load the visa document
+            # parse and load the input document
             documents = LlamaParse(
                 api_key=llama_cloud_api_key,
                 base_url=os.getenv("LLAMA_CLOUD_BASE_URL"),
                 result_type="markdown",
-                content_guideline_instruction="This is a visa application form, gather related facts together and format it as bullet points with headers"
-            ).load_data(ev.visa_info)
+                content_guideline_instruction="This is a medical information form, gather related facts together and format it as bullet points with headers"
+            ).load_data(ev.input_path)
 
             # Add metadata to documents
             for doc in documents:
                 if not hasattr(doc, "metadata"):
                     doc.metadata = {}
-                doc.metadata["visa_id"] = visa_id
+                doc.metadata["input_path_id"] = input_path_id
             
             # Embed and index the documents
             index = VectorStoreIndex.from_documents(
@@ -95,27 +95,27 @@ class RAGWorkflow(Workflow):
             os.makedirs(self.storage_dir, exist_ok=True)
             index.storage_context.persist(persist_dir=self.storage_dir)
 
-        # Create a query engine with filters based on visa_filter_ids
-        if visa_filter_ids and len(visa_filter_ids) > 0:
+        # Create a query engine with filters based on input_filter_ids
+        if input_filter_ids and len(input_filter_ids) > 0:
             # Create proper MetadataFilters object
-            if len(visa_filter_ids) == 1:
-                # Single filter for just one visa ID
+            if len(input_filter_ids) == 1:
+                # Single filter for just one input ID
                 metadata_filter = MetadataFilter(
-                    key="visa_id", 
-                    value=visa_filter_ids[0]
+                    key="input_path_id", 
+                    value=input_filter_ids[0]
                 )
                 metadata_filters = MetadataFilters(filters=[metadata_filter])
             else:
-                # Multiple filters for multiple visa IDs
+                # Multiple filters for multiple input IDs
                 filters = []
-                for vid in visa_filter_ids:
+                for vid in input_filter_ids:
                     filters.append(MetadataFilter(
-                        key="visa_id", 
+                        key="input_path_id", 
                         value=vid
                     ))
                 metadata_filters = MetadataFilters(
                     filters=filters,
-                    condition="or"  # Match any of the visa IDs
+                    condition="or"  # Match any of the input IDs
                 )
                 
             self.query_engine = index.as_query_engine(
@@ -127,7 +127,7 @@ class RAGWorkflow(Workflow):
             # Use all documents if no filter specified
             self.query_engine = index.as_query_engine(llm=self.llm, similarity_top_k=5)
             
-        return ParseFormEvent(application_form=ev.application_form)
+        return ParseFormEvent(document_path=ev.document_path)
 
     @step
     async def parse_form(self, ctx: Context, ev: ParseFormEvent) -> QueryEvent:
@@ -140,7 +140,7 @@ class RAGWorkflow(Workflow):
         )
 
         # Get the LLM to convert the parsed form into JSON
-        result = parser.load_data(ev.application_form)[0]
+        result = parser.load_data(ev.document_path)[0]
         raw_json = self.llm.complete(
             f"""
             This is a parsed form. 
@@ -163,9 +163,9 @@ class RAGWorkflow(Workflow):
 
     @step
     async def ask_question(self, ctx: Context, ev: QueryEvent) -> ResponseEvent:
-        # Get the visa_filter_ids to use in the prompt
-        visa_filter_ids = await ctx.get("visa_filter_ids")
-        visa_context = "the visa documents" if len(visa_filter_ids) > 1 else "the specific visa document"
+        # Get the input_filter_ids to use in the prompt
+        input_filter_ids = await ctx.get("input_filter_ids")
+        input_context = "the input documents" if len(input_filter_ids) > 1 else "the specific input document"
         
         response = self.query_engine.query(
             f"This is a question about {visa_context} we have in our database: {ev.query}"
@@ -176,7 +176,7 @@ class RAGWorkflow(Workflow):
     async def fill_in_application(self, ctx: Context, ev: ResponseEvent) -> StopEvent:
         # get the total number of fields to wait for
         total_fields = await ctx.get("total_fields")
-        visa_filter_ids = await ctx.get("visa_filter_ids")
+        input_filter_ids = await ctx.get("input_filter_ids")
 
         responses = ctx.collect_events(ev, [ResponseEvent] * total_fields)
         if responses is None:
@@ -185,11 +185,11 @@ class RAGWorkflow(Workflow):
         # once we've got all the responses:
         responseList = "\n".join("Field: " + r.field + "\n" + "Response: " + r.response for r in responses)
 
-        visa_context = f"using information from visa document(s): {', '.join(visa_filter_ids)}"
+        input_context = f"using information from input document(s): {', '.join(input_filter_ids)}"
 
         result = self.llm.complete(f"""
             You are given a list of fields in an application form and responses to
-            questions about those fields from {visa_context}. Combine the two into a list of
+            questions about those fields from {input_context}. Combine the two into a list of
             fields and succinct, factual answers to fill in those fields.
 
             <responses>
@@ -204,7 +204,7 @@ def get_llama_parser():
     api_key=llama_cloud_api_key,
     base_url=os.getenv("LLAMA_CLOUD_BASE_URL"),
     result_type="markdown",
-    content_guideline_instruction="This is a visa application form. Create a list of all the fields that need to be filled in.",
+    content_guideline_instruction="This is a medical information form, gather related facts together and format it as bullet points with headers",
     system_prompt="Return a bulleted list of the fields ONLY."
   )
   return parser
