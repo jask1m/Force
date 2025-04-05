@@ -76,7 +76,7 @@ class RAGWorkflow(Workflow):
             documents = LlamaParse(
                 api_key=llama_cloud_api_key,
                 base_url=os.getenv("LLAMA_CLOUD_BASE_URL"),
-                result_type="markdown",
+                result_type="text",
                 content_guideline_instruction="This is a medical information form, gather related facts together and format it as bullet points with headers"
             ).load_data(ev.input_path)
 
@@ -134,7 +134,7 @@ class RAGWorkflow(Workflow):
         parser = LlamaParse(
             api_key=llama_cloud_api_key,
             base_url=os.getenv("LLAMA_CLOUD_BASE_URL"),
-            result_type="markdown",
+            result_type="text",
             content_guideline_instruction="This is a medical information form. Create a list of all the fields that need to be filled in.",
             system_prompt="Return a bulleted list of the fields ONLY."
         )
@@ -203,7 +203,7 @@ def get_llama_parser():
   parser = LlamaParse(
     api_key=llama_cloud_api_key,
     base_url=os.getenv("LLAMA_CLOUD_BASE_URL"),
-    result_type="markdown",
+    result_type="text",
     content_guideline_instruction="This is a medical information form, gather related facts together and format it as bullet points with headers",
     system_prompt="Return a bulleted list of the fields ONLY."
   )

@@ -39,7 +39,7 @@ async def analyze_video(video: UploadFile = File(...)) -> Dict[str, Any]:
     upload_id = f"upload_{int(start_time)}_{hash(video.filename) % 10000}"
     
     # Create analysis file for this upload
-    analysis_path = os.path.join(analysis_dir, f"{upload_id}.md")
+    analysis_path = os.path.join(analysis_dir, f"{upload_id}.txt")
     with open(analysis_path, "w", encoding="utf-8") as f:
         f.write(f"# Video Analysis: {video.filename}\n\n")
         f.write(f"**Upload ID**: {upload_id}\n")
@@ -195,7 +195,7 @@ async def stream_video(video_id: str):
 @router.post("/save-transcription")
 async def save_transcription(request: Request) -> Dict[str, Any]:
     """
-    Save a transcription as a markdown file and return the file ID
+    Save a transcription as a text file and return the file ID
     """
     try:
         # Parse the request body
@@ -210,11 +210,11 @@ async def save_transcription(request: Request) -> Dict[str, Any]:
         # Generate a unique ID for this transcription
         transcription_id = f"trans_{int(time.time())}_{uuid.uuid4().hex[:6]}"
         
-        # Create a markdown file path
-        md_path = os.path.join(transcriptions_dir, f"{transcription_id}.md")
+        # Create a text file path
+        txt_path = os.path.join(transcriptions_dir, f"{transcription_id}.txt")
         
-        # Write the markdown file with metadata and transcription
-        with open(md_path, "w", encoding="utf-8") as f:
+        # Write the text file with metadata and transcription
+        with open(txt_path, "w", encoding="utf-8") as f:
             # Write title and metadata
             f.write(f"# {title}\n\n")
             f.write(f"**ID**: {transcription_id}\n")
@@ -239,7 +239,7 @@ async def save_transcription(request: Request) -> Dict[str, Any]:
         return {
             "status": "success",
             "transcription_id": transcription_id,
-            "file_path": md_path
+            "file_path": txt_path
         }
         
     except Exception as e:
@@ -259,9 +259,9 @@ async def list_transcriptions() -> Dict[str, Any]:
     try:
         transcriptions = []
         
-        # List all markdown files in the transcriptions directory
+        # List all text files in the transcriptions directory
         for filename in os.listdir(transcriptions_dir):
-            if filename.endswith(".md"):
+            if filename.endswith(".txt"):
                 file_path = os.path.join(transcriptions_dir, filename)
                 
                 # Extract basic info from the file
@@ -285,7 +285,7 @@ async def list_transcriptions() -> Dict[str, Any]:
                 
                 # Add to list of transcriptions
                 transcriptions.append({
-                    "id": filename[:-3],  # Remove .md extension
+                    "id": filename[:-4],  # Remove .txt extension
                     "title": title,
                     "date": date,
                     "file_path": file_path
@@ -311,7 +311,7 @@ async def get_transcription(transcription_id: str) -> Dict[str, Any]:
     """
     Get a specific transcription by ID
     """
-    file_path = os.path.join(transcriptions_dir, f"{transcription_id}.md")
+    file_path = os.path.join(transcriptions_dir, f"{transcription_id}.txt")
     
     if not os.path.exists(file_path):
         return JSONResponse(
