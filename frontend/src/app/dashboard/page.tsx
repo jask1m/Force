@@ -24,10 +24,10 @@ export default function Dashboard() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-bold mb-2">Welcome back, John</h1>
-        <p className="text-muted-foreground">
-          Track your documents and applications from one place.
-        </p>
+        <h1 className="text-3xl font-bold mb-2">Welcome back</h1>
+          <p className="text-muted-foreground">
+            Track your documents and applications from one place.
+          </p>
       </div>
 
       {/* Quick Actions */}
@@ -43,9 +43,9 @@ export default function Dashboard() {
               language.
             </CardDescription>
             <Button asChild className="w-full mt-4">
-              <Link to="/dashboard/record">
+              <a href="/record">
                 Start Recording <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
+              </a>
             </Button>
           </CardContent>
         </Card>
