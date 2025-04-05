@@ -1,6 +1,6 @@
 import os, json
 from llama_parse import LlamaParse
-from llama_index.llms.openai import OpenAI
+from llama_index.llms.gemini import Gemini
 from llama_index.embeddings.openai import OpenAIEmbedding
 from llama_index.core import (
     VectorStoreIndex,
@@ -17,13 +17,14 @@ from llama_index.core.workflow import (
     Event,
     Context
 )
-from helper import get_openai_api_key, get_llama_cloud_api_key
+from helper import get_openai_api_key, get_llama_cloud_api_key, get_google_api_key
 
 import nest_asyncio
 
 nest_asyncio.apply()
 llama_cloud_api_key = get_llama_cloud_api_key()
 openai_api_key = get_openai_api_key()
+google_api_key = get_google_api_key()
 
 class ParseFormEvent(Event):
   application_form: str
@@ -39,7 +40,7 @@ class ResponseEvent(Event):
 class RAGWorkflow(Workflow):
     
     base_storage_dir = "./storage"
-    llm: OpenAI
+    llm: Gemini
     query_engine: VectorStoreIndex
 
     @step
@@ -61,7 +62,11 @@ class RAGWorkflow(Workflow):
         # Create storage directory for this specific visa document
         self.storage_dir = os.path.join(self.base_storage_dir, visa_id)
 
-        self.llm = OpenAI(model="gpt-4o-mini")
+        self.llm = Gemini(
+            model="models/gemini-1.5-flash",
+            api_key=google_api_key,
+            temperature=0.3
+        )
 
         if os.path.exists(self.storage_dir) and use_existing_index:
             storage_context = StorageContext.from_defaults(persist_dir=self.storage_dir)
