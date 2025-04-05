@@ -9,7 +9,13 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, FileText, Video, CheckSquare } from "lucide-react";
+import {
+  ArrowRight,
+  FileText,
+  Video,
+  CheckSquare,
+  FileCode,
+} from "lucide-react";
 
 interface Video {
   id: string;
@@ -28,38 +34,56 @@ interface Document {
   path?: string;
 }
 
+interface Transcription {
+  id: string;
+  title: string;
+  date: string;
+  file_path: string;
+  selected: boolean;
+}
+
 export default function Dashboard() {
   // Sample videos data for demonstration
   const [videos, setVideos] = useState<Video[]>([]);
   const [documents, setDocuments] = useState<Document[]>([]);
+  const [transcriptions, setTranscriptions] = useState<Transcription[]>([]);
 
   // Fetch documents from backend on component mount
   useEffect(() => {
     const fetchDocuments = async () => {
       try {
-        const response = await fetch('/api/list-documents');
+        const response = await fetch("/api/list-documents");
         if (!response.ok) {
-          throw new Error('Failed to fetch documents');
+          throw new Error("Failed to fetch documents");
         }
 
         const data = await response.json();
         if (data.documents && Array.isArray(data.documents)) {
           // Transform the document structure to match our interface
-          const formattedDocs = data.documents.map((doc: any) => ({
-            id: doc.id || `doc-${Math.random().toString(36).substring(2)}`,
-            title: doc.name || "Unnamed Document",
-            type: doc.name ? doc.name.split('.').pop().toUpperCase() : "UNKNOWN",
-            dateUploaded: doc.date || new Date().toLocaleDateString(),
-            path: doc.path,
-            selected: false
-          }));
+          const formattedDocs = data.documents.map(
+            (doc: {
+              id?: string;
+              name?: string;
+              date?: string;
+              path?: string;
+            }) => ({
+              id: doc.id || `doc-${Math.random().toString(36).substring(2)}`,
+              title: doc.name || "Unnamed Document",
+              type: doc.name
+                ? doc.name.split(".").pop()?.toUpperCase() || "UNKNOWN"
+                : "UNKNOWN",
+              dateUploaded: doc.date || new Date().toLocaleDateString(),
+              path: doc.path,
+              selected: false,
+            })
+          );
           setDocuments(formattedDocs);
         } else {
           console.log("No documents found");
           setDocuments([]);
         }
       } catch (error) {
-        console.error('Error fetching documents:', error);
+        console.error("Error fetching documents:", error);
         setDocuments([]);
       }
     };
@@ -72,11 +96,66 @@ export default function Dashboard() {
       fetchDocuments();
     };
 
-    window.addEventListener('focus', handleFocus);
+    window.addEventListener("focus", handleFocus);
 
     // Cleanup event listeners
     return () => {
-      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, []);
+
+  // Fetch transcriptions from backend
+  useEffect(() => {
+    const fetchTranscriptions = async () => {
+      try {
+        const response = await fetch(
+          "http://localhost:8000/gemini/transcriptions"
+        );
+        if (!response.ok) {
+          throw new Error("Failed to fetch transcriptions");
+        }
+
+        const data = await response.json();
+        if (data.status === "success" && Array.isArray(data.transcriptions)) {
+          // Transform the transcription structure to match our interface
+          const formattedTranscriptions = data.transcriptions.map(
+            (trans: {
+              id: string;
+              title?: string;
+              date?: string;
+              file_path: string;
+            }) => ({
+              id: trans.id,
+              title: trans.title || "Untitled Transcription",
+              date: trans.date || new Date().toLocaleDateString(),
+              file_path: trans.file_path,
+              selected: false,
+            })
+          );
+          setTranscriptions(formattedTranscriptions);
+        } else {
+          console.log("No transcriptions found");
+          setTranscriptions([]);
+        }
+      } catch (error) {
+        console.error("Error fetching transcriptions:", error);
+        setTranscriptions([]);
+      }
+    };
+
+    // Initial fetch
+    fetchTranscriptions();
+
+    // Refresh transcriptions when window gets focus
+    const handleFocus = () => {
+      fetchTranscriptions();
+    };
+
+    window.addEventListener("focus", handleFocus);
+
+    // Cleanup event listeners
+    return () => {
+      window.removeEventListener("focus", handleFocus);
     };
   }, []);
 
@@ -110,18 +189,61 @@ export default function Dashboard() {
     );
   };
 
+  const handleTranscriptionSelect = (id: string) => {
+    setTranscriptions(
+      transcriptions.map((trans) => ({
+        ...trans,
+        selected: trans.id === id,
+      }))
+    );
+  };
+
   const handleProcess = () => {
-    const selectedVideo = videos.find((v) => v.selected);
     const selectedDocument = documents.find((d) => d.selected);
+    const selectedTranscription = transcriptions.find((t) => t.selected);
 
-    if (selectedVideo && selectedDocument) {
-      // Process the selected video and document
-      console.log("Processing:", { video: selectedVideo, document: selectedDocument });
+    if (selectedDocument && selectedTranscription) {
+      // Extract just the filename from the path
+      const getFilename = (path: string | undefined) => {
+        if (!path) return selectedDocument.title;
+        // Split by '/' and get the last part (filename)
+        const parts = path.split("/");
+        return parts[parts.length - 1];
+      };
 
-      // Show a simple alert for demonstration
-      alert(`Processing video "${selectedVideo.title}" with document "${selectedDocument.title}"`);
+      // Prepare the request body for the process-form endpoint
+      const requestBody = {
+        input_path: `data/transcriptions/${selectedTranscription.id}.md`,
+        input_path_id: selectedTranscription.id,
+        document_path: `data/documents/${getFilename(selectedDocument.path)}`,
+        use_existing_index: true,
+        input_filter_ids: [selectedTranscription.id],
+      };
 
-      // In a real app, you would send this to your backend for processing
+      // Send the request to the process-form endpoint
+      fetch("http://localhost:8000/llama/process-form", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(requestBody),
+      })
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error("Failed to process form");
+          }
+          return response.json();
+        })
+        .then((data) => {
+          console.log("Processing result:", data);
+          alert("Form processing completed successfully!");
+        })
+        .catch((error) => {
+          console.error("Error processing form:", error);
+          alert("Error processing form. Please try again.");
+        });
+    } else {
+      alert("Please select both a document and a transcription to process.");
     }
   };
 
@@ -155,7 +277,9 @@ export default function Dashboard() {
                   <div
                     key={video.id}
                     className={`flex items-center justify-between p-4 border rounded-lg cursor-pointer transition-colors ${
-                      video.selected ? "bg-primary/10 border-primary" : "hover:bg-muted/50"
+                      video.selected
+                        ? "bg-primary/10 border-primary"
+                        : "hover:bg-muted/50"
                     }`}
                     onClick={() => handleVideoSelect(video.id)}
                   >
@@ -181,7 +305,7 @@ export default function Dashboard() {
                   <h3 className="mt-4 text-lg font-medium">No videos yet</h3>
                   <Button
                     className="mt-4 mx-auto flex items-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
-                    onClick={() => window.location.href = '/dashboard/record'}
+                    onClick={() => (window.location.href = "/dashboard/record")}
                   >
                     Record a video <ArrowRight className="h-4 w-4" />
                   </Button>
@@ -198,9 +322,7 @@ export default function Dashboard() {
               <FileText className="h-5 w-5" />
               Your Documents
             </CardTitle>
-            <CardDescription>
-              Select a document to be processed
-            </CardDescription>
+            <CardDescription>Select a document to be processed</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
@@ -209,7 +331,9 @@ export default function Dashboard() {
                   <div
                     key={document.id}
                     className={`flex items-center justify-between p-4 border rounded-lg cursor-pointer transition-colors ${
-                      document.selected ? "bg-primary/10 border-primary" : "hover:bg-muted/50"
+                      document.selected
+                        ? "bg-primary/10 border-primary"
+                        : "hover:bg-muted/50"
                     }`}
                     onClick={() => handleDocumentSelect(document.id)}
                   >
@@ -228,12 +352,66 @@ export default function Dashboard() {
                 <div className="text-center py-8">
                   <FileText className="h-12 w-12 mx-auto text-muted-foreground" />
                   <h3 className="mt-4 text-lg font-medium">No documents yet</h3>
-                    <Button
-                      className="mt-4 mx-auto flex items-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
-                      onClick={() => window.location.href = '/dashboard/documents'}
-                    >
-                      Upload a document <ArrowRight className="h-4 w-4" />
-                    </Button>
+                  <Button
+                    className="mt-4 mx-auto flex items-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
+                    onClick={() =>
+                      (window.location.href = "/dashboard/documents")
+                    }
+                  >
+                    Upload a document <ArrowRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Transcriptions Section */}
+      <div className="grid grid-cols-1 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FileCode className="h-5 w-5" />
+              Your Transcriptions
+            </CardTitle>
+            <CardDescription>
+              Select a transcription to use for processing (optional)
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {Array.isArray(transcriptions) && transcriptions.length > 0 ? (
+                transcriptions.map((transcription) => (
+                  <div
+                    key={transcription.id}
+                    className={`flex items-center justify-between p-4 border rounded-lg cursor-pointer transition-colors ${
+                      transcription.selected
+                        ? "bg-primary/10 border-primary"
+                        : "hover:bg-muted/50"
+                    }`}
+                    onClick={() => handleTranscriptionSelect(transcription.id)}
+                  >
+                    <div>
+                      <h3 className="font-semibold">{transcription.title}</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Created on {transcription.date}
+                      </p>
+                    </div>
+                    {transcription.selected && (
+                      <CheckSquare className="h-5 w-5 text-primary" />
+                    )}
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8">
+                  <FileCode className="h-12 w-12 mx-auto text-muted-foreground" />
+                  <h3 className="mt-4 text-lg font-medium">
+                    No transcriptions yet
+                  </h3>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Transcriptions will appear here after processing videos
+                  </p>
                 </div>
               )}
             </div>
@@ -247,7 +425,10 @@ export default function Dashboard() {
           onClick={handleProcess}
           className="flex items-center gap-2"
           size="lg"
-          disabled={!videos.some(v => v.selected) || !documents.some(d => d.selected)}
+          // disabled={
+          //   !videos.some((v) => v.selected) ||
+          //   !documents.some((d) => d.selected)
+          // }
         >
           Process Selected Items
           <ArrowRight className="h-4 w-4" />
