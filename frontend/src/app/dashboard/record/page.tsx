@@ -9,16 +9,13 @@ import {
   CardContent,
   CardFooter,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 
 export default function Page() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const [isCameraOn, setIsCameraOn] = useState(false);
-  const [isStreaming, setIsStreaming] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [recordedChunks, setRecordedChunks] = useState<Blob[]>([]);
-  const [videoFile, setVideoFile] = useState<File | null>(null);
   const [analysisResults, setAnalysisResults] = useState<string | null>(null);
 
   const startCamera = async () => {
@@ -42,7 +39,6 @@ export default function Page() {
       tracks.forEach((track) => track.stop());
       videoRef.current.srcObject = null;
       setIsCameraOn(false);
-      setIsStreaming(false);
       setIsRecording(false);
       setRecordedChunks([]);
     }
@@ -51,16 +47,33 @@ export default function Page() {
   const startRecording = () => {
     if (videoRef.current && videoRef.current.srcObject) {
       const stream = videoRef.current.srcObject as MediaStream;
-      const mediaRecorder = new MediaRecorder(stream);
+      const mediaRecorder = new MediaRecorder(stream, {
+        mimeType: "video/webm;codecs=vp8,opus",
+      });
       mediaRecorderRef.current = mediaRecorder;
+
+      const chunks: Blob[] = [];
 
       mediaRecorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
-          setRecordedChunks((prev) => [...prev, event.data]);
+          chunks.push(event.data);
+          setRecordedChunks(chunks);
         }
       };
 
-      mediaRecorder.start();
+      mediaRecorder.onstop = async () => {
+        if (chunks.length > 0) {
+          const blob = new Blob(chunks, { type: "video/webm" });
+          await handleVideoAnalysis(blob);
+        } else {
+          console.error("No video data recorded");
+          setAnalysisResults(
+            "Error: No video data recorded. Please try again."
+          );
+        }
+      };
+
+      mediaRecorder.start(1000); // Collect data every second
       setIsRecording(true);
     }
   };
@@ -75,43 +88,10 @@ export default function Page() {
     }
   };
 
-  const downloadRecording = () => {
-    if (recordedChunks.length === 0) return;
-
-    const blob = new Blob(recordedChunks, { type: "video/webm" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    document.body.appendChild(a);
-    a.style.display = "none";
-    a.href = url;
-    a.download = "recorded-video.webm";
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  // Placeholder for starting the streaming process
-  const startStreaming = () => {
-    setIsStreaming(true);
-    console.log("Streaming started");
-  };
-
-  // Placeholder for stopping the streaming process
-  const stopStreaming = () => {
-    setIsStreaming(false);
-    console.log("Streaming stopped");
-  };
-
-  // Handle video upload and analysis
-  const handleUpload = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-
-    if (!videoFile) {
-      console.error("No video file selected");
-      return;
-    }
-
+  const handleVideoAnalysis = async (videoBlob: Blob) => {
     const formData = new FormData();
-    formData.append("video", videoFile);
+    console.log("videoBlob", videoBlob);
+    formData.append("video", videoBlob, "recording.webm");
 
     try {
       const response = await fetch(
@@ -128,15 +108,36 @@ export default function Page() {
 
       const data = await response.json();
       setAnalysisResults(JSON.stringify(data, null, 2));
-    } catch (error) {
-      console.error("Error uploading video:", error);
-      setAnalysisResults("Error analyzing video. Please try again.");
-    }
-  };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setVideoFile(e.target.files[0]);
+      // Save the transcription
+      const saveResponse = await fetch(
+        "http://localhost:8000/gemini/save-transcription",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            transcription: data.analysis,
+            source_type: "video_recording",
+            metadata: {
+              upload_id: data.upload_id,
+              timing: data.timing,
+            },
+            title: `Video Recording - ${new Date().toLocaleString()}`,
+          }),
+        }
+      );
+
+      if (!saveResponse.ok) {
+        throw new Error(`Failed to save transcription: ${saveResponse.status}`);
+      }
+
+      const saveData = await saveResponse.json();
+      console.log("Transcription saved:", saveData);
+    } catch (error) {
+      console.error("Error:", error);
+      setAnalysisResults("Error analyzing video. Please try again.");
     }
   };
 
@@ -156,8 +157,8 @@ export default function Page() {
             <video
               ref={videoRef}
               className="rounded-md border"
-              muted
               autoPlay
+              muted
               playsInline
               width={400}
               height={300}
@@ -182,25 +183,7 @@ export default function Page() {
                 Stop Recording
               </Button>
             ) : null}
-            {recordedChunks.length > 0 && (
-              <Button variant="outline" onClick={downloadRecording}>
-                Download Recording
-              </Button>
-            )}
           </CardFooter>
-        </Card>
-
-        {/* Upload Video Card */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Upload Video</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleUpload} className="flex flex-col gap-2">
-              <Input type="file" accept="video/*" onChange={handleFileChange} />
-              <Button type="submit">Upload &amp; Analyze</Button>
-            </form>
-          </CardContent>
         </Card>
       </div>
 
@@ -217,8 +200,7 @@ export default function Page() {
               </div>
             ) : (
               <p className="text-sm text-muted-foreground">
-                No results yet. Either upload a video or connect to the camera
-                stream.
+                No results yet. Start recording to see analysis results.
               </p>
             )}
           </CardContent>
