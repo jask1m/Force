@@ -11,10 +11,9 @@ export default function LandingPage() {
       <main className="flex-1">
         <section className="py-20 px-6">
           <div className="container mx-auto max-w-5xl text-center">
-            <h1 className="text-5xl font-bold mb-6">Simplify Your Immigration Process</h1>
+            <h1 className="text-5xl font-bold mb-6">Tell your story. We'll handle the paperwork.</h1>
             <p className="text-xl text-muted-foreground mb-10 max-w-3xl mx-auto">
-              We help you navigate complex immigration procedures with AI-powered tools,
-              document management, and personalized guidance.
+            Share your story in your language — our AI helps complete your immigration forms with ease and support.
             </p>
             <Button size="lg" asChild>
               <Link href="/dashboard">
@@ -32,9 +31,9 @@ export default function LandingPage() {
                 <div className="bg-primary/10 w-12 h-12 rounded-full flex items-center justify-center mb-4">
                   <span className="text-primary font-bold">1</span>
                 </div>
-                <h3 className="text-xl font-semibold mb-2">Record Your Story</h3>
+                <h3 className="text-xl font-semibold mb-2">Record or Upload a Video of Your Story</h3>
                 <p className="text-muted-foreground">
-                  Explain your situation in your native language using our video recording tool.
+                  Explain your situation in any language using our video recording tool.
                 </p>
               </div>
               <div className="bg-background p-6 rounded-lg shadow-sm">
