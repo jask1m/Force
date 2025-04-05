@@ -111,17 +111,18 @@ export default function DocumentsPage() {
       const result = await response.json();
 
       // Add newly uploaded documents to the state immediately
-      if (result.documents) {
+      if (result.documents && Array.isArray(result.documents)) {
         const newDocs = result.documents.map((doc: any) => ({
           ...doc,
-          id: `doc-${doc.name.replace(/\s+/g, '-')}`,
-          date: new Date().toLocaleDateString(),
+          id: doc.id || `doc-${doc.name.replace(/\s+/g, '-')}`,
+          date: doc.date || new Date().toLocaleDateString(),
           type: documentType // Ensure the type is set correctly based on the current documentType
         }));
 
+        // Update uploadedDocs state which triggers the useEffect to update application/supporting docs
         setUploadedDocs(prev => [...prev, ...newDocs]);
       } else {
-        // Refresh the document list if we don't have the uploaded documents in the response
+        // If no documents in response, fetch all documents from server
         await fetchDocuments();
       }
 
@@ -284,13 +285,14 @@ export default function DocumentsPage() {
               </Button>
               <Button
                 onClick={() => {
-                  // Force documentType to "application" before uploading
-                  setDocumentType("application");
+                  if (documentType !== "application") {
+                    setDocumentType("application");
+                  }
                   uploadDocuments();
                 }}
                 disabled={documents.length === 0 || uploading}
               >
-                {uploading ? 'Uploading...' : 'Upload as Application Form'}
+                {uploading && documentType === "application" ? 'Uploading...' : 'Upload as Application Form'}
               </Button>
             </div>
           </div>
@@ -340,13 +342,14 @@ export default function DocumentsPage() {
               </Button>
               <Button
                 onClick={() => {
-                  // Force documentType to "supporting" before uploading
-                  setDocumentType("supporting");
+                  if (documentType !== "supporting") {
+                    setDocumentType("supporting");
+                  }
                   uploadDocuments();
                 }}
                 disabled={documents.length === 0 || uploading}
               >
-                {uploading ? 'Uploading...' : 'Upload as Supporting Document'}
+                {uploading && documentType === "supporting" ? 'Uploading...' : 'Upload as Supporting Document'}
               </Button>
             </div>
           </div>

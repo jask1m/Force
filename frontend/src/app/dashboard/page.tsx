@@ -1,12 +1,13 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
+  CardFooter,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,7 +17,10 @@ import {
   CheckSquare,
   FileCode,
   X,
+  User,
 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import ReactMarkdown from "react-markdown";
 
 interface Video {
   id: string;
@@ -58,6 +62,9 @@ export default function Dashboard() {
   const [processingResult, setProcessingResult] =
     useState<ProcessingResult | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [selectedTranscription, setSelectedTranscription] = useState<Transcription | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [transcriptionContent, setTranscriptionContent] = useState("");
 
   // Fetch documents from backend on component mount
   useEffect(() => {
@@ -201,12 +208,51 @@ export default function Dashboard() {
   };
 
   const handleTranscriptionSelect = (id: string) => {
-    setTranscriptions(
-      transcriptions.map((trans) => ({
-        ...trans,
-        selected: trans.id === id,
-      }))
-    );
+    // First, deselect all transcriptions
+    const updatedTranscriptions = transcriptions.map((trans) => ({
+      ...trans,
+      selected: trans.id === id,
+    }));
+
+    setTranscriptions(updatedTranscriptions);
+
+    // Find the selected transcription for display
+    const selected = updatedTranscriptions.find(t => t.id === id);
+    if (selected) {
+      setSelectedTranscription(selected);
+    }
+  };
+
+  const handleViewTranscript = async (transcription: Transcription) => {
+    try {
+      // Extract the filename from the path
+      const filename = transcription.file_path.split('/').pop();
+
+      if (!filename) {
+        throw new Error("Invalid file path");
+      }
+
+      // Fetch the transcription content
+      const response = await fetch(`http://localhost:8000/gemini/get-transcription-content?filename=${filename}`);
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch transcription content");
+      }
+
+      const data = await response.json();
+
+      if (data.status === "success") {
+        setTranscriptionContent(data.content || "No content available");
+        setSelectedTranscription(transcription);
+        setIsDialogOpen(true);
+      } else {
+        throw new Error(data.message || "Failed to fetch transcription content");
+      }
+    } catch (error) {
+      console.error("Error fetching transcription content:", error);
+      setTranscriptionContent("Error loading transcription content");
+      setIsDialogOpen(true);
+    }
   };
 
   const handleProcess = () => {
@@ -281,44 +327,59 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Videos Section */}
+        {/* Videos & Transcriptions Section */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Video className="h-5 w-5" />
-              Your Videos
+              Your Videos & Transcriptions
             </CardTitle>
             <CardDescription>
-              Select a video to use for processing
+              Select a video or transcription to use for processing
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {videos.length > 0 ? (
-                videos.map((video) => (
+              {Array.isArray(transcriptions) && transcriptions.length > 0 ? (
+                transcriptions.map((transcription) => (
                   <div
-                    key={video.id}
+                    key={transcription.id}
                     className={`flex items-center justify-between p-4 border rounded-lg cursor-pointer transition-colors ${
-                      video.selected
+                      transcription.selected
                         ? "bg-primary/10 border-primary"
                         : "hover:bg-muted/50"
                     }`}
-                    onClick={() => handleVideoSelect(video.id)}
                   >
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 flex-1">
                       <div className="bg-muted h-12 w-16 rounded flex items-center justify-center">
-                        <Video className="h-6 w-6 text-muted-foreground" />
+                        <User className="h-6 w-6 text-muted-foreground" />
                       </div>
                       <div>
-                        <h3 className="font-semibold">{video.title}</h3>
+                        <h3 className="font-semibold">{transcription.title}</h3>
                         <p className="text-sm text-muted-foreground">
-                          Duration: {video.duration}
+                          Created on {transcription.date}
                         </p>
                       </div>
                     </div>
-                    {video.selected && (
-                      <CheckSquare className="h-5 w-5 text-primary" />
-                    )}
+                    <div className="flex space-x-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleViewTranscript(transcription);
+                        }}
+                      >
+                        View Transcript
+                      </Button>
+                      <Button
+                        variant={transcription.selected ? "default" : "secondary"}
+                        size="sm"
+                        onClick={() => handleTranscriptionSelect(transcription.id)}
+                      >
+                        {transcription.selected ? "Selected" : "Select"}
+                      </Button>
+                    </div>
                   </div>
                 ))
               ) : (
@@ -389,58 +450,6 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {/* Transcriptions Section */}
-      <div className="grid grid-cols-1 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FileCode className="h-5 w-5" />
-              Your Transcriptions
-            </CardTitle>
-            <CardDescription>
-              Select a transcription to use for processing (optional)
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {Array.isArray(transcriptions) && transcriptions.length > 0 ? (
-                transcriptions.map((transcription) => (
-                  <div
-                    key={transcription.id}
-                    className={`flex items-center justify-between p-4 border rounded-lg cursor-pointer transition-colors ${
-                      transcription.selected
-                        ? "bg-primary/10 border-primary"
-                        : "hover:bg-muted/50"
-                    }`}
-                    onClick={() => handleTranscriptionSelect(transcription.id)}
-                  >
-                    <div>
-                      <h3 className="font-semibold">{transcription.title}</h3>
-                      <p className="text-sm text-muted-foreground">
-                        Created on {transcription.date}
-                      </p>
-                    </div>
-                    {transcription.selected && (
-                      <CheckSquare className="h-5 w-5 text-primary" />
-                    )}
-                  </div>
-                ))
-              ) : (
-                <div className="text-center py-8">
-                  <FileCode className="h-12 w-12 mx-auto text-muted-foreground" />
-                  <h3 className="mt-4 text-lg font-medium">
-                    No transcriptions yet
-                  </h3>
-                  <p className="text-sm text-muted-foreground mt-2">
-                    Transcriptions will appear here after processing videos
-                  </p>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
       {/* Process Button */}
       <div className="flex justify-center">
         <Button
@@ -499,6 +508,17 @@ export default function Dashboard() {
           </div>
         </div>
       )}
+      {/* Transcription Viewing Dialog */}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{selectedTranscription?.title || "Transcript"}</DialogTitle>
+          </DialogHeader>
+          <div className="prose prose-sm max-w-none">
+            <ReactMarkdown>{transcriptionContent}</ReactMarkdown>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
