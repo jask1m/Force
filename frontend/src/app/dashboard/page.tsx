@@ -203,19 +203,11 @@ export default function Dashboard() {
     const selectedTranscription = transcriptions.find((t) => t.selected);
 
     if (selectedDocument && selectedTranscription) {
-      // Extract just the filename from the path
-      const getFilename = (path: string | undefined) => {
-        if (!path) return selectedDocument.title;
-        // Split by '/' and get the last part (filename)
-        const parts = path.split("/");
-        return parts[parts.length - 1];
-      };
-
       // Prepare the request body for the process-form endpoint
       const requestBody = {
         input_path: `data/transcriptions/${selectedTranscription.id}.md`,
         input_path_id: selectedTranscription.id,
-        document_path: `data/documents/${getFilename(selectedDocument.path)}`,
+        document_path: `data/documents/${selectedDocument.path?.split('data/documents/')[1]}`,
         use_existing_index: true,
         input_filter_ids: [selectedTranscription.id],
       };
