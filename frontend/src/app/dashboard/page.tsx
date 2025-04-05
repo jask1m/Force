@@ -23,14 +23,32 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold mb-2">Welcome back</h1>
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold mb-2">Welcome back</h1>
           <p className="text-muted-foreground">
             Track your documents and applications from one place.
           </p>
+        </div>
+        <div className="flex items-center gap-4">
+          <div className="text-right">
+            <h3 className="font-medium">John Doe</h3>
+            <p className="text-sm text-muted-foreground">john.doe@example.com</p>
+          </div>
+          <div className="h-12 w-12 rounded-full bg-muted overflow-hidden">
+            <img
+              src="/placeholder-avatar.jpg"
+              alt="Profile"
+              className="h-full w-full object-cover"
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                target.src = "https://ui-avatars.com/api/?name=John+Doe";
+              }}
+            />
+          </div>
+        </div>
       </div>
 
-      {/* Recent Activity */}
       <Card>
         <CardHeader>
           <CardTitle>Recent Activity</CardTitle>

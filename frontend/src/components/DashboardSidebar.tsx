@@ -42,12 +42,7 @@ const DashboardSidebar = ({
       title: 'My Documents',
       icon: <CheckSquare className="h-5 w-5" />,
       path: '/dashboard/documents',
-    },
-    {
-      title: 'Profile',
-      icon: <User className="h-5 w-5" />,
-      path: '/dashboard/profile',
-    },
+    }
   ];
 
   return (
@@ -103,19 +98,6 @@ const DashboardSidebar = ({
             </ul>
           </nav>
 
-          {/* Footer */}
-          <div className="p-5 border-t border-border">
-            <Button
-              variant="outline"
-              className="w-full flex items-center justify-center"
-              asChild
-            >
-              <Link href="/">
-                <LogOut className="mr-2 h-4 w-4" />
-                <span>Sign Out</span>
-              </Link>
-            </Button>
-          </div>
         </div>
       </aside>
     </>
