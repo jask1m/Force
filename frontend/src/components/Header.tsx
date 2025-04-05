@@ -8,7 +8,6 @@ export default function Header() {
         </div>
         <div className="h-12 w-12 rounded-full bg-muted overflow-hidden">
           <img
-            src="/placeholder-avatar.jpg"
             alt="Profile"
             className="h-full w-full object-cover"
             onError={(e) => {

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -25,12 +25,72 @@ interface Document {
   type: string;
   dateUploaded: string;
   selected: boolean;
+  path?: string;
 }
 
 export default function Dashboard() {
+  // Sample videos data for demonstration
   const [videos, setVideos] = useState<Video[]>([]);
-
   const [documents, setDocuments] = useState<Document[]>([]);
+
+  // Fetch documents from backend on component mount
+  useEffect(() => {
+    const fetchDocuments = async () => {
+      try {
+        const response = await fetch('/api/list-documents');
+        if (!response.ok) {
+          throw new Error('Failed to fetch documents');
+        }
+
+        const data = await response.json();
+        if (data.documents && Array.isArray(data.documents)) {
+          // Transform the document structure to match our interface
+          const formattedDocs = data.documents.map((doc: any) => ({
+            id: doc.id || `doc-${Math.random().toString(36).substring(2)}`,
+            title: doc.name || "Unnamed Document",
+            type: doc.name ? doc.name.split('.').pop().toUpperCase() : "UNKNOWN",
+            dateUploaded: doc.date || new Date().toLocaleDateString(),
+            path: doc.path,
+            selected: false
+          }));
+          setDocuments(formattedDocs);
+        } else {
+          console.log("No documents found");
+          setDocuments([]);
+        }
+      } catch (error) {
+        console.error('Error fetching documents:', error);
+        setDocuments([]);
+      }
+    };
+
+    // Initial fetch
+    fetchDocuments();
+
+    // Refresh documents when window gets focus (user returning from documents page)
+    const handleFocus = () => {
+      fetchDocuments();
+    };
+
+    window.addEventListener('focus', handleFocus);
+
+    // Cleanup event listeners
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, []);
+
+  // Function to check for new videos (future implementation)
+  // This would be replaced with actual API calls
+  const checkForNewVideos = () => {
+    // For now, this just uses the sample data
+    console.log("Checked for new videos");
+  };
+
+  // Call this function once when component mounts
+  useEffect(() => {
+    checkForNewVideos();
+  }, []);
 
   const handleVideoSelect = (id: string) => {
     setVideos(
@@ -57,7 +117,11 @@ export default function Dashboard() {
     if (selectedVideo && selectedDocument) {
       // Process the selected video and document
       console.log("Processing:", { video: selectedVideo, document: selectedDocument });
-      // Add your processing logic here
+
+      // Show a simple alert for demonstration
+      alert(`Processing video "${selectedVideo.title}" with document "${selectedDocument.title}"`);
+
+      // In a real app, you would send this to your backend for processing
     }
   };
 
@@ -140,7 +204,7 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {documents.length > 0 ? (
+              {Array.isArray(documents) && documents.length > 0 ? (
                 documents.map((document) => (
                   <div
                     key={document.id}
@@ -164,9 +228,12 @@ export default function Dashboard() {
                 <div className="text-center py-8">
                   <FileText className="h-12 w-12 mx-auto text-muted-foreground" />
                   <h3 className="mt-4 text-lg font-medium">No documents yet</h3>
-                  <p className="mt-2 text-muted-foreground">
-                    Upload documents to get started
-                  </p>
+                    <Button
+                      className="mt-4 mx-auto flex items-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
+                      onClick={() => window.location.href = '/dashboard/documents'}
+                    >
+                      Upload a document <ArrowRight className="h-4 w-4" />
+                    </Button>
                 </div>
               )}
             </div>
