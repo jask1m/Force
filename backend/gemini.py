@@ -10,6 +10,10 @@ from fastapi.responses import JSONResponse, HTMLResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from typing import Dict, Any
 import json
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.lib.units import inch
 
 load_dotenv()
 
@@ -195,7 +199,7 @@ async def stream_video(video_id: str):
 @router.post("/save-transcription")
 async def save_transcription(request: Request) -> Dict[str, Any]:
     """
-    Save a transcription as a text file and return the file ID
+    Save a transcription as a PDF file and return the file ID
     """
     try:
         # Parse the request body
@@ -210,36 +214,76 @@ async def save_transcription(request: Request) -> Dict[str, Any]:
         # Generate a unique ID for this transcription
         transcription_id = f"trans_{int(time.time())}_{uuid.uuid4().hex[:6]}"
         
-        # Create a text file path
-        txt_path = os.path.join(transcriptions_dir, f"{transcription_id}.txt")
+        # Create a PDF file path
+        pdf_path = os.path.join(transcriptions_dir, f"{transcription_id}.pdf")
         
-        # Write the text file with metadata and transcription
-        with open(txt_path, "w", encoding="utf-8") as f:
-            # Write title and metadata
-            f.write(f"# {title}\n\n")
-            f.write(f"**ID**: {transcription_id}\n")
-            f.write(f"**Date**: {time.ctime()}\n")
-            f.write(f"**Source**: {source_type}\n")
-            
-            # Write any additional metadata
-            if metadata:
-                f.write("\n## Metadata\n\n")
-                for key, value in metadata.items():
-                    f.write(f"**{key}**: {value}\n")
-            
-            # Write the transcription
-            f.write("\n## Transcription\n\n")
-            f.write(transcription)
-            
-            # Write footer
-            f.write("\n\n---\n")
-            f.write(f"Generated on {time.ctime()}")
+        # Create the PDF document
+        doc = SimpleDocTemplate(pdf_path, pagesize=letter)
+        styles = getSampleStyleSheet()
+        
+        # Create custom styles
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=16,
+            spaceAfter=30
+        )
+        
+        heading_style = ParagraphStyle(
+            'CustomHeading',
+            parent=styles['Heading2'],
+            fontSize=14,
+            spaceAfter=12
+        )
+        
+        normal_style = ParagraphStyle(
+            'CustomNormal',
+            parent=styles['Normal'],
+            fontSize=11,
+            spaceAfter=8
+        )
+        
+        # Build the content
+        content = []
+        
+        # Add title
+        content.append(Paragraph(title, title_style))
+        content.append(Spacer(1, 0.2*inch))
+        
+        # Add metadata
+        content.append(Paragraph(f"ID: {transcription_id}", normal_style))
+        content.append(Paragraph(f"Date: {time.ctime()}", normal_style))
+        content.append(Paragraph(f"Source: {source_type}", normal_style))
+        
+        # Add any additional metadata
+        if metadata:
+            content.append(Spacer(1, 0.2*inch))
+            content.append(Paragraph("Metadata", heading_style))
+            for key, value in metadata.items():
+                content.append(Paragraph(f"<b>{key}</b>: {value}", normal_style))
+        
+        # Add the transcription
+        content.append(Spacer(1, 0.3*inch))
+        content.append(Paragraph("Transcription", heading_style))
+        
+        # Split transcription into paragraphs and add them
+        paragraphs = transcription.split('\n\n')
+        for para in paragraphs:
+            if para.strip():
+                content.append(Paragraph(para, normal_style))
+        
+        # Add footer
+        content.append(Spacer(1, 0.5*inch))
+        content.append(Paragraph(f"Generated on {time.ctime()}", normal_style))
+        
+        # Build the PDF
+        doc.build(content)
         
         # Return success and file ID
         return {
             "status": "success",
             "transcription_id": transcription_id,
-            "file_path": txt_path
+            "file_path": pdf_path
         }
         
     except Exception as e:
@@ -259,33 +303,23 @@ async def list_transcriptions() -> Dict[str, Any]:
     try:
         transcriptions = []
         
-        # List all text files in the transcriptions directory
+        # List all PDF files in the transcriptions directory
         for filename in os.listdir(transcriptions_dir):
-            if filename.endswith(".txt"):
+            if filename.endswith(".pdf"):
                 file_path = os.path.join(transcriptions_dir, filename)
                 
-                # Extract basic info from the file
-                title = "Untitled"
-                date = ""
+                # Extract basic info from the filename
+                transcription_id = filename[:-4]  # Remove .pdf extension
                 
-                try:
-                    with open(file_path, "r", encoding="utf-8") as f:
-                        lines = f.readlines()
-                        if lines and lines[0].startswith("# "):
-                            title = lines[0][2:].strip()
-                        
-                        # Look for date in the first few lines
-                        for line in lines[:5]:
-                            if "**Date**:" in line:
-                                date = line.split("**Date**:", 1)[1].strip()
-                                break
-                except:
-                    # If we can't read the file, use fallback info
-                    pass
+                # Get file creation time as date
+                date = time.ctime(os.path.getctime(file_path))
+                
+                # Use the ID as title since we can't easily extract from PDF
+                title = f"Transcription {transcription_id}"
                 
                 # Add to list of transcriptions
                 transcriptions.append({
-                    "id": filename[:-4],  # Remove .txt extension
+                    "id": transcription_id,
                     "title": title,
                     "date": date,
                     "file_path": file_path
@@ -307,11 +341,11 @@ async def list_transcriptions() -> Dict[str, Any]:
         )
 
 @router.get("/transcription/{transcription_id}")
-async def get_transcription(transcription_id: str) -> Dict[str, Any]:
+async def get_transcription(transcription_id: str):
     """
     Get a specific transcription by ID
     """
-    file_path = os.path.join(transcriptions_dir, f"{transcription_id}.txt")
+    file_path = os.path.join(transcriptions_dir, f"{transcription_id}.pdf")
     
     if not os.path.exists(file_path):
         return JSONResponse(
@@ -320,14 +354,12 @@ async def get_transcription(transcription_id: str) -> Dict[str, Any]:
         )
     
     try:
-        with open(file_path, "r", encoding="utf-8") as f:
-            content = f.read()
-            
-        return {
-            "status": "success",
-            "transcription_id": transcription_id,
-            "content": content
-        }
+        # Return the PDF file directly
+        return FileResponse(
+            file_path,
+            media_type="application/pdf",
+            filename=f"{transcription_id}.pdf"
+        )
     
     except Exception as e:
         return JSONResponse(

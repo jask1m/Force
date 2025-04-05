@@ -15,6 +15,7 @@ import {
   Video,
   CheckSquare,
   FileCode,
+  X,
 } from "lucide-react";
 
 interface Video {
@@ -42,11 +43,21 @@ interface Transcription {
   selected: boolean;
 }
 
+interface ProcessingResult {
+  success: boolean;
+  result?: string;
+  error?: string;
+}
+
 export default function Dashboard() {
   // Sample videos data for demonstration
   const [videos, setVideos] = useState<Video[]>([]);
   const [documents, setDocuments] = useState<Document[]>([]);
   const [transcriptions, setTranscriptions] = useState<Transcription[]>([]);
+  const [showResults, setShowResults] = useState(false);
+  const [processingResult, setProcessingResult] =
+    useState<ProcessingResult | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   // Fetch documents from backend on component mount
   useEffect(() => {
@@ -203,11 +214,16 @@ export default function Dashboard() {
     const selectedTranscription = transcriptions.find((t) => t.selected);
 
     if (selectedDocument && selectedTranscription) {
+      // Set processing state
+      setIsProcessing(true);
+
       // Prepare the request body for the process-form endpoint
       const requestBody = {
         input_path: `data/transcriptions/${selectedTranscription.id}.md`,
         input_path_id: selectedTranscription.id,
-        document_path: `data/documents/${selectedDocument.path?.split('data/documents/')[1]}`,
+        document_path: `data/documents/${
+          selectedDocument.path?.split("data/documents/")[1]
+        }`,
         use_existing_index: true,
         input_filter_ids: [selectedTranscription.id],
       };
@@ -228,15 +244,29 @@ export default function Dashboard() {
         })
         .then((data) => {
           console.log("Processing result:", data);
-          alert("Form processing completed successfully!");
+          setProcessingResult({
+            success: true,
+            result: data.result || "Processing completed successfully.",
+          });
+          setShowResults(true);
+          setIsProcessing(false);
         })
         .catch((error) => {
           console.error("Error processing form:", error);
-          alert("Error processing form. Please try again.");
+          setProcessingResult({
+            success: false,
+            error: error.message || "An error occurred during processing.",
+          });
+          setShowResults(true);
+          setIsProcessing(false);
         });
     } else {
       alert("Please select both a document and a transcription to process.");
     }
+  };
+
+  const closeResults = () => {
+    setShowResults(false);
   };
 
   return (
@@ -417,15 +447,58 @@ export default function Dashboard() {
           onClick={handleProcess}
           className="flex items-center gap-2"
           size="lg"
-          // disabled={
-          //   !videos.some((v) => v.selected) ||
-          //   !documents.some((d) => d.selected)
-          // }
+          disabled={isProcessing}
         >
-          Process Selected Items
+          {isProcessing ? "Processing..." : "Process Selected Items"}
           <ArrowRight className="h-4 w-4" />
         </Button>
       </div>
+
+      {/* Results Modal */}
+      {showResults && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-end">
+          <div className="bg-white dark:bg-gray-800 h-full w-full max-w-md p-6 shadow-lg transform transition-transform duration-300 ease-in-out">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold">
+                {processingResult?.success
+                  ? "Processing Complete"
+                  : "Processing Error"}
+              </h2>
+              <Button variant="ghost" size="icon" onClick={closeResults}>
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
+
+            <div className="mt-4">
+              {processingResult?.success ? (
+                <div className="space-y-4">
+                  <p className="text-green-600 dark:text-green-400">
+                    Your form has been processed successfully!
+                  </p>
+                  <div className="bg-gray-100 dark:bg-gray-700 p-4 rounded-md overflow-auto max-h-[60vh]">
+                    <pre className="whitespace-pre-wrap text-sm">
+                      {processingResult.result}
+                    </pre>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <p className="text-red-600 dark:text-red-400">
+                    There was an error processing your form.
+                  </p>
+                  <div className="bg-gray-100 dark:bg-gray-700 p-4 rounded-md">
+                    <p className="text-sm">{processingResult?.error}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="mt-6 flex justify-end">
+              <Button onClick={closeResults}>Close</Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -149,7 +149,34 @@ class RAGWorkflow(Workflow):
             Return JSON ONLY, no markdown.
             <form>{result.text}</form>. 
             """)
-        fields = json.loads(raw_json.text)["fields"]
+        
+        # Clean the response text to ensure it's valid JSON
+        json_text = raw_json.text.strip()
+        
+        # Remove any markdown code block indicators if present
+        if json_text.startswith("```json"):
+            json_text = json_text[7:]
+        if json_text.startswith("```"):
+            json_text = json_text[3:]
+        if json_text.endswith("```"):
+            json_text = json_text[:-3]
+        
+        json_text = json_text.strip()
+        
+        try:
+            json_data = json.loads(json_text)
+            fields = json_data["fields"]
+        except json.JSONDecodeError as e:
+            print(f"JSON parsing error: {e}")
+            print(f"Problematic JSON text: {json_text}")
+            # Fallback: try to extract fields using regex if JSON parsing fails
+            import re
+            field_matches = re.findall(r'"([^"]+)"', json_text)
+            if field_matches:
+                fields = field_matches
+                print("Extracted fields using regex:", fields)
+            else:
+                raise ValueError(f"Failed to parse JSON: {e}")
 
         for field in fields:
             ctx.send_event(QueryEvent(
