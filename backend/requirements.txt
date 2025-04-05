@@ -9,3 +9,4 @@ python-dotenv
 nest_asyncio
 fastapi
 uvicorn
+google-genai
