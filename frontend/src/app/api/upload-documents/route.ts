@@ -7,6 +7,7 @@ export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
     const files = formData.getAll('documents') as File[];
+    const documentType = formData.get('documentType') as 'application' | 'supporting';
 
     if (files.length === 0) {
       return NextResponse.json(
@@ -15,12 +16,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create documents directory if it doesn't exist
-    // TODO: change this to use MongoDB instead of local file system
-    const documentsDir = join(process.cwd(), '..', 'backend', 'data', 'documents');
+    // Create base documents directory if it doesn't exist
+    const baseDocumentsDir = join(process.cwd(), '..', 'backend', 'data', 'documents');
+    if (!existsSync(baseDocumentsDir)) {
+      await mkdir(baseDocumentsDir, { recursive: true });
+    }
 
-    if (!existsSync(documentsDir)) {
-      await mkdir(documentsDir, { recursive: true });
+    // Determine the target directory based on document type
+    const targetDir = documentType === 'application'
+      ? join(baseDocumentsDir, 'applications')
+      : join(baseDocumentsDir, 'supporting');
+
+    // Create the target directory if it doesn't exist
+    if (!existsSync(targetDir)) {
+      await mkdir(targetDir, { recursive: true });
     }
 
     const savedDocuments = await Promise.all(
@@ -28,16 +37,16 @@ export async function POST(request: NextRequest) {
         const bytes = await file.arrayBuffer();
         const buffer = Buffer.from(bytes);
 
-        // Create a filename with the original name but with a UUID prefix
         const fileName = `${file.name}`;
-        const filePath = join(documentsDir, fileName);
+        const filePath = join(targetDir, fileName);
 
         await writeFile(filePath, buffer);
 
         return {
           name: file.name,
           size: file.size,
-          path: filePath
+          path: filePath,
+          type: documentType
         };
       })
     );
@@ -55,4 +64,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-
