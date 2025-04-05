@@ -2,17 +2,29 @@
 
 import React, { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  CardFooter,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 
 export default function Page() {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const [isCameraOn, setIsCameraOn] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordedChunks, setRecordedChunks] = useState<Blob[]>([]);
 
   const startCamera = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: true,
+        audio: false,
+      });
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         setIsCameraOn(true);
@@ -28,20 +40,61 @@ export default function Page() {
       tracks.forEach((track) => track.stop());
       videoRef.current.srcObject = null;
       setIsCameraOn(false);
-      setIsStreaming(false); // Also stop streaming when camera is turned off
+      setIsStreaming(false);
+      setIsRecording(false);
+      setRecordedChunks([]);
     }
+  };
+
+  const startRecording = () => {
+    if (videoRef.current && videoRef.current.srcObject) {
+      const stream = videoRef.current.srcObject as MediaStream;
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          setRecordedChunks((prev) => [...prev, event.data]);
+        }
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+    }
+  };
+
+  const stopRecording = () => {
+    if (
+      mediaRecorderRef.current &&
+      mediaRecorderRef.current.state !== "inactive"
+    ) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+    }
+  };
+
+  const downloadRecording = () => {
+    if (recordedChunks.length === 0) return;
+
+    const blob = new Blob(recordedChunks, { type: "video/webm" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    document.body.appendChild(a);
+    a.style.display = "none";
+    a.href = url;
+    a.download = "recorded-video.webm";
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   // Placeholder for starting the streaming process
   const startStreaming = () => {
-    // Add your streaming logic here
     setIsStreaming(true);
     console.log("Streaming started");
   };
 
   // Placeholder for stopping the streaming process
   const stopStreaming = () => {
-    // Add your stop streaming logic here
     setIsStreaming(false);
     console.log("Streaming stopped");
   };
@@ -86,15 +139,20 @@ export default function Page() {
                 Stop Camera
               </Button>
             )}
-            {isCameraOn && !isStreaming ? (
-              <Button variant="default" onClick={startCamera}>
-                Start Streaming
+            {isCameraOn && !isRecording ? (
+              <Button variant="default" onClick={startRecording}>
+                Start Recording
               </Button>
-            ) : isCameraOn && isStreaming ? (
-              <Button variant="secondary" onClick={stopStreaming}>
-                Stop Streaming
+            ) : isCameraOn && isRecording ? (
+              <Button variant="secondary" onClick={stopRecording}>
+                Stop Recording
               </Button>
             ) : null}
+            {recordedChunks.length > 0 && (
+              <Button variant="outline" onClick={downloadRecording}>
+                Download Recording
+              </Button>
+            )}
           </CardFooter>
         </Card>
 
@@ -120,7 +178,8 @@ export default function Page() {
           </CardHeader>
           <CardContent className="flex flex-col h-full">
             <p className="text-sm text-muted-foreground">
-              No results yet. Either upload a video or connect to the camera stream.
+              No results yet. Either upload a video or connect to the camera
+              stream.
             </p>
             {/* Once you have analysis results, you can display them here */}
           </CardContent>
