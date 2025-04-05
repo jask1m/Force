@@ -5,6 +5,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from gemini import router as gemini_router
+from llama import router as llama_router
 
 # Get base directory path
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -21,7 +22,9 @@ app.add_middleware(
 )
 
 # Include the Gemini router
+
 app.include_router(gemini_router, prefix="/gemini", tags=["Gemini"])
+app.include_router(llama_router, prefix="/llama", tags=["LlamaIndex"])
 
 # Serve test.html for testing
 @app.get("/test", response_class=FileResponse)
