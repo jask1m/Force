@@ -28,6 +28,7 @@ export default function Page() {
       tracks.forEach((track) => track.stop());
       videoRef.current.srcObject = null;
       setIsCameraOn(false);
+      setIsStreaming(false); // Also stop streaming when camera is turned off
     }
   };
 
@@ -76,18 +77,24 @@ export default function Page() {
             />
           </CardContent>
           <CardFooter className="flex flex-wrap gap-2">
-            <Button variant="default" onClick={startCamera}>
-              Start Camera
-            </Button>
-            <Button variant="secondary" onClick={stopCamera}>
-              Stop Camera
-            </Button>
-            <Button variant="default" onClick={startStreaming}>
-              Start Streaming
-            </Button>
-            <Button variant="secondary" onClick={stopStreaming}>
-              Stop Streaming
-            </Button>
+            {!isCameraOn ? (
+              <Button variant="default" onClick={startCamera}>
+                Start Camera
+              </Button>
+            ) : (
+              <Button variant="secondary" onClick={stopCamera}>
+                Stop Camera
+              </Button>
+            )}
+            {isCameraOn && !isStreaming ? (
+              <Button variant="default" onClick={startCamera}>
+                Start Streaming
+              </Button>
+            ) : isCameraOn && isStreaming ? (
+              <Button variant="secondary" onClick={stopStreaming}>
+                Stop Streaming
+              </Button>
+            ) : null}
           </CardFooter>
         </Card>
 
