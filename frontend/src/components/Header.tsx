@@ -1,5 +1,9 @@
-import Image from 'next/image';
+"use client";
 
+import { useEffect, useState } from "react";
+import { createClient } from "@/utils/supabase/client";
+import { User } from "@supabase/supabase-js";
+import Image from "next/image";
 export default function Header() {
   const [user, setUser] = useState<User | null>(null);
   const supabase = createClient();
@@ -24,7 +28,7 @@ export default function Header() {
     return () => {
       subscription.unsubscribe();
     };
-  }, []);
+  }, [supabase.auth]);
 
   return (
     <header className="">
@@ -37,11 +41,10 @@ export default function Header() {
         </div>
         <div className="h-12 w-12 rounded-full bg-muted overflow-hidden">
           <Image
-            src="https://ui-avatars.com/api/?name=John+Doe"
             alt="Profile"
+            className="h-full w-full object-cover"
             width={48}
             height={48}
-            className="h-full w-full object-cover"
             src={
               user?.user_metadata?.avatar_url ||
               `https://ui-avatars.com/api/?name=${encodeURIComponent(
