@@ -11,7 +11,7 @@ Fillosophy is a video processing and transcription platform designed to help use
 
 ### Prerequisites 📋
 
-- 🐍 Python 3.9+
+- 🐍 Python 3.13+
 - 💻 Node.js 18+ and npm
 - 🔑 Google Gemini API key
 - 🤖 OpenAI API key
