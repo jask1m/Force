@@ -1,18 +1,17 @@
 "use client";
 
-import React from 'react';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import React from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   FileText,
   Video,
   CheckSquare,
   Menu,
   X,
-  ClipboardList
-} from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 type SidebarProps = {
   isMobileSidebarOpen: boolean;
@@ -21,25 +20,25 @@ type SidebarProps = {
 
 const DashboardSidebar = ({
   isMobileSidebarOpen,
-  setIsMobileSidebarOpen
+  setIsMobileSidebarOpen,
 }: SidebarProps) => {
   const pathname = usePathname();
 
   const menuItems = [
     {
-      title: 'Dashboard',
+      title: "Dashboard",
       icon: <FileText className="h-5 w-5" />,
-      path: '/dashboard',
+      path: "/dashboard",
     },
     {
-      title: 'Record Video',
+      title: "Record Video",
       icon: <Video className="h-5 w-5" />,
-      path: '/dashboard/record',
+      path: "/dashboard/record",
     },
     {
-      title: 'My Documents',
+      title: "My Documents",
       icon: <CheckSquare className="h-5 w-5" />,
-      path: '/dashboard/documents',
+      path: "/dashboard/documents",
     },
     // {
     //   title: 'Form Filler',
@@ -58,7 +57,11 @@ const DashboardSidebar = ({
           onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
           aria-label="Toggle menu"
         >
-          {isMobileSidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          {isMobileSidebarOpen ? (
+            <X className="h-5 w-5" />
+          ) : (
+            <Menu className="h-5 w-5" />
+          )}
         </Button>
       </div>
 
@@ -100,7 +103,6 @@ const DashboardSidebar = ({
               ))}
             </ul>
           </nav>
-
         </div>
       </aside>
     </>
