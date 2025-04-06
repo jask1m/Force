@@ -1,9 +1,9 @@
 # Fillosophy 📝🤖
 
-[![Python](https://img.shields.io/badge/Python-3.9+-blue.svg)](https://www.python.org/)
+[![Python](https://img.shields.io/badge/Python-3.13+-blue.svg)](https://www.python.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.100.0-009688.svg)](https://fastapi.tiangolo.com/)
-[![Next.js](https://img.shields.io/badge/Next.js-13+-000000.svg)](https://nextjs.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115.0-009688.svg)](https://fastapi.tiangolo.com/)
+[![Next.js](https://img.shields.io/badge/Next.js-15+-000000.svg)](https://nextjs.org/)
 
 ## Overview 🌟
 
@@ -11,7 +11,7 @@ Fillosophy is a video processing and transcription platform designed to help use
 
 ### Prerequisites 📋
 
-- 🐍 Python 3.9+
+- 🐍 Python 3.13+
 - 💻 Node.js 18+ and npm
 - 🔑 Google Gemini API key
 - 🤖 OpenAI API key
