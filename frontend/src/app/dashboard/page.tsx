@@ -316,7 +316,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="space-y-8 max-w-6xl mx-auto">
+    <div className="space-y-8 max-w-full mx-auto px-4">
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold mb-2">Welcome back</h1>
