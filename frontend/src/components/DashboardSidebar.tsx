@@ -71,7 +71,7 @@ const DashboardSidebar = ({
           <div className="p-5 border-b border-border">
             <Link href="/" className="flex items-center gap-2">
               <span className="font-bold text-2xl bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/80">
-                name of project
+                fillosophy
               </span>
             </Link>
           </div>

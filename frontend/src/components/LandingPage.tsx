@@ -21,9 +21,12 @@ export default function LandingPage() {
       <main className="flex-1">
         <section className="py-20 px-6">
           <div className="container mx-auto max-w-5xl text-center">
-            <h1 className="text-5xl font-bold mb-6">
-              Tell your story. We'll handle the paperwork.
+            <h1 className="text-6xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/80 inline-block">
+              fillosophy
             </h1>
+            <h2 className="text-4xl font-bold mb-6">
+              Tell your story. We'll handle the paperwork.
+            </h2>
             <p className="text-xl text-muted-foreground mb-10 max-w-3xl mx-auto">
               Share your story in your language — our AI helps complete your
               immigration forms with ease and support.
