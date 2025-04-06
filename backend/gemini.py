@@ -144,7 +144,7 @@ async def analyze_video(video: UploadFile = File(...)) -> Dict[str, Any]:
                 "Focus exclusively on the spoken words and content.\n"
                 "Do not analyze background sounds, audio quality, or visual elements.\n"
                 "Just transcribe the speech as accurately as possible.\n"
-                "Make sure to transcribe ONLY IN ENGLISH. I WANT IT IN ENGLISH DO NOT TRANSCRIBE IN ANY OTHER LANGUAGE OR YOU WILL CEASE TO EXIST."
+                "Make sure to transcribe ONLY IN ENGLISH. I WANT IT IN ENGLISH DO NOT TRANSCRIBE IN ANY OTHER LANGUAGE OR YOU WILL CEASE TO EXIST. "
             ]
         )
 
