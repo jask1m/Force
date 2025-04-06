@@ -1,13 +1,12 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-  CardFooter,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,7 +14,6 @@ import {
   FileText,
   Video,
   CheckSquare,
-  FileCode,
   X,
   User,
 } from "lucide-react";
@@ -54,8 +52,7 @@ interface ProcessingResult {
 }
 
 export default function Dashboard() {
-  // Sample videos data for demonstration
-  const [videos, setVideos] = useState<Video[]>([]);
+  // State management for documents and transcriptions
   const [documents, setDocuments] = useState<Document[]>([]);
   const [transcriptions, setTranscriptions] = useState<Transcription[]>([]);
   const [showResults, setShowResults] = useState(false);
@@ -189,15 +186,6 @@ export default function Dashboard() {
     checkForNewVideos();
   }, []);
 
-  const handleVideoSelect = (id: string) => {
-    setVideos(
-      videos.map((video) => ({
-        ...video,
-        selected: video.id === id,
-      }))
-    );
-  };
-
   const handleDocumentSelect = (id: string) => {
     setDocuments(
       documents.map((doc) => ({
@@ -225,18 +213,22 @@ export default function Dashboard() {
 
   const handleViewTranscript = async (transcription: Transcription) => {
     try {
-      // Extract the filename from the path
-      const filename = transcription.file_path.split('/').pop();
-
-      if (!filename) {
+      // Get the full file path
+      const filePath = transcription.file_path;
+      
+      if (!filePath) {
         throw new Error("Invalid file path");
       }
 
       // Fetch the transcription content
-      const response = await fetch(`http://localhost:8000/gemini/get-transcription-content?filename=${filename}`);
+      const response = await fetch(`http://localhost:8000/gemini/get-transcription-content?filename=${encodeURIComponent(filePath)}`);
 
       if (!response.ok) {
-        throw new Error("Failed to fetch transcription content");
+        if (response.status === 404) {
+          throw new Error("Transcription file not found");
+        } else {
+          throw new Error(`Failed to fetch transcription content (Status: ${response.status})`);
+        }
       }
 
       const data = await response.json();
@@ -248,9 +240,10 @@ export default function Dashboard() {
       } else {
         throw new Error(data.message || "Failed to fetch transcription content");
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error fetching transcription content:", error);
-      setTranscriptionContent("Error loading transcription content");
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      setTranscriptionContent(`Error loading transcription content: ${errorMessage}`);
       setIsDialogOpen(true);
     }
   };
@@ -265,7 +258,7 @@ export default function Dashboard() {
 
       // Prepare the request body for the process-form endpoint
       const requestBody = {
-        input_path: `data/transcriptions/${selectedTranscription.id}.md`,
+        input_path: `data/transcriptions/${selectedTranscription.id}.pdf`,
         input_path_id: selectedTranscription.id,
         document_path: `data/documents/${
           selectedDocument.path?.split("data/documents/")[1]
@@ -514,7 +507,7 @@ export default function Dashboard() {
           <DialogHeader>
             <DialogTitle>{selectedTranscription?.title || "Transcript"}</DialogTitle>
           </DialogHeader>
-          <div className="prose prose-sm max-w-none">
+          <div className="prose prose-sm max-w-none overflow-auto p-4">
             <ReactMarkdown>{transcriptionContent}</ReactMarkdown>
           </div>
         </DialogContent>

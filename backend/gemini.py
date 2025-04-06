@@ -371,6 +371,250 @@ async def get_transcription(transcription_id: str):
             }
         )
 
+@router.get("/get-transcription-content")
+async def get_transcription_content(filename: str):
+    """
+    Extract only the pure transcription text content from a PDF file and return it as JSON
+    """
+    try:
+        # Check if the path is absolute or just a filename
+        if os.path.isabs(filename):
+            # Use the absolute path if provided
+            file_path = filename
+        else:
+            # Check if it's a relative path or just a filename
+            potential_path = os.path.join(transcriptions_dir, filename)
+            if os.path.exists(potential_path):
+                file_path = potential_path
+            else:
+                # Maybe it's just the filename without extension
+                potential_path_with_ext = os.path.join(transcriptions_dir, f"{filename}.pdf")
+                if os.path.exists(potential_path_with_ext):
+                    file_path = potential_path_with_ext
+                else:
+                    # Just use what was provided for error reporting
+                    file_path = filename
+
+        # Verify the file exists
+        if not os.path.exists(file_path):
+            print(f"Transcription file not found: {file_path}")
+            return JSONResponse(
+                status_code=404,
+                content={"status": "error", "message": f"File not found: {filename}"}
+            )
+
+        # Check if it's a PDF file
+        if not file_path.lower().endswith('.pdf'):
+            return JSONResponse(
+                status_code=400,
+                content={"status": "error", "message": "Only PDF files are supported"}
+            )
+
+        # Use PyPDF2 to extract text from the PDF
+        try:
+            from PyPDF2 import PdfReader
+            reader = PdfReader(file_path)
+            
+            # Extract text from each page
+            text_content = []
+            for page_num in range(len(reader.pages)):
+                page = reader.pages[page_num]
+                text_content.append(page.extract_text())
+            
+            # Join all page content
+            complete_text = "\n\n".join(text_content)
+            
+            # Direct approach - using regex to find the text after "Transcription" and before "Generated on"
+            import re
+            transcription_pattern = re.compile(r'Transcription\s+(.*?)(?:\s+Generated on|\Z)', re.DOTALL)
+            match = transcription_pattern.search(complete_text)
+            
+            if match:
+                # Found the transcription text
+                transcription_text = match.group(1).strip()
+            else:
+                # Fallback method - try to find any paragraph that isn't metadata
+                metadata_keywords = ["ID:", "Date:", "Source:", "Metadata", "upload_id:", "timing:", "video_load_time", 
+                                    "api_time", "total_time", "Generated on", "Transcription", "Video Recording"]
+                
+                # Split into paragraphs and filter out metadata
+                paragraphs = re.split(r'\n\s*\n', complete_text)
+                filtered_paragraphs = []
+                
+                for para in paragraphs:
+                    para = para.strip()
+                    if not para:
+                        continue
+                        
+                    # Skip if it contains any metadata keywords
+                    if any(keyword in para for keyword in metadata_keywords):
+                        # Check if this paragraph contains the actual transcription
+                        # Sometimes the transcription is in the same paragraph as metadata
+                        if "Transcription" in para:
+                            # Try to extract just the transcription part
+                            parts = para.split("Transcription")
+                            if len(parts) > 1:
+                                transcription_part = parts[1].strip()
+                                if "Generated on" in transcription_part:
+                                    transcription_part = transcription_part.split("Generated on")[0].strip()
+                                filtered_paragraphs.append(transcription_part)
+                    else:
+                        # This paragraph doesn't contain metadata keywords
+                        filtered_paragraphs.append(para)
+                
+                # Join the remaining paragraphs
+                transcription_text = "\n\n".join(filtered_paragraphs)
+                
+                # If still empty, use extreme fallback: extract lines between Transcription and Generated on
+                if not transcription_text and "Transcription" in complete_text and "Generated on" in complete_text:
+                    lines = complete_text.splitlines()
+                    capture = False
+                    captured_lines = []
+                    
+                    for line in lines:
+                        if "Transcription" in line:
+                            # Start capturing from the next line
+                            capture = True
+                            # Also check if transcription is on the same line
+                            if len(line.split("Transcription")) > 1:
+                                text_after = line.split("Transcription")[1].strip()
+                                if text_after:
+                                    captured_lines.append(text_after)
+                            continue
+                            
+                        if "Generated on" in line:
+                            # Stop capturing
+                            capture = False
+                            break
+                            
+                        if capture and line.strip():
+                            captured_lines.append(line.strip())
+                    
+                    transcription_text = " ".join(captured_lines)
+            
+            # Final cleanup - remove any remaining metadata-like text
+            transcription_text = transcription_text.replace("Transcription", "").strip()
+            for keyword in ["ID:", "Date:", "Source:", "Metadata:", "Generated on"]:
+                if keyword in transcription_text:
+                    transcription_text = transcription_text.split(keyword)[0].strip()
+            
+            return {
+                "status": "success",
+                "content": transcription_text or "No transcription content found in PDF"
+            }
+            
+        except ImportError:
+            # If PyPDF2 is not available, try using external tool pdftotext if available
+            try:
+                import subprocess
+                result = subprocess.run(
+                    ["pdftotext", file_path, "-"],
+                    capture_output=True,
+                    text=True,
+                    check=True
+                )
+                
+                complete_text = result.stdout
+                
+                # Use the same extraction logic as above
+                import re
+                transcription_pattern = re.compile(r'Transcription\s+(.*?)(?:\s+Generated on|\Z)', re.DOTALL)
+                match = transcription_pattern.search(complete_text)
+                
+                if match:
+                    # Found the transcription text
+                    transcription_text = match.group(1).strip()
+                else:
+                    # Fallback method - try to find any paragraph that isn't metadata
+                    metadata_keywords = ["ID:", "Date:", "Source:", "Metadata", "upload_id:", "timing:", "video_load_time", 
+                                        "api_time", "total_time", "Generated on", "Transcription", "Video Recording"]
+                    
+                    # Split into paragraphs and filter out metadata
+                    paragraphs = re.split(r'\n\s*\n', complete_text)
+                    filtered_paragraphs = []
+                    
+                    for para in paragraphs:
+                        para = para.strip()
+                        if not para:
+                            continue
+                            
+                        # Skip if it contains any metadata keywords
+                        if any(keyword in para for keyword in metadata_keywords):
+                            # Check if this paragraph contains the actual transcription
+                            # Sometimes the transcription is in the same paragraph as metadata
+                            if "Transcription" in para:
+                                # Try to extract just the transcription part
+                                parts = para.split("Transcription")
+                                if len(parts) > 1:
+                                    transcription_part = parts[1].strip()
+                                    if "Generated on" in transcription_part:
+                                        transcription_part = transcription_part.split("Generated on")[0].strip()
+                                    filtered_paragraphs.append(transcription_part)
+                        else:
+                            # This paragraph doesn't contain metadata keywords
+                            filtered_paragraphs.append(para)
+                    
+                    # Join the remaining paragraphs
+                    transcription_text = "\n\n".join(filtered_paragraphs)
+                    
+                    # If still empty, use extreme fallback: extract lines between Transcription and Generated on
+                    if not transcription_text and "Transcription" in complete_text and "Generated on" in complete_text:
+                        lines = complete_text.splitlines()
+                        capture = False
+                        captured_lines = []
+                        
+                        for line in lines:
+                            if "Transcription" in line:
+                                # Start capturing from the next line
+                                capture = True
+                                # Also check if transcription is on the same line
+                                if len(line.split("Transcription")) > 1:
+                                    text_after = line.split("Transcription")[1].strip()
+                                    if text_after:
+                                        captured_lines.append(text_after)
+                                continue
+                                
+                            if "Generated on" in line:
+                                # Stop capturing
+                                capture = False
+                                break
+                                
+                            if capture and line.strip():
+                                captured_lines.append(line.strip())
+                        
+                        transcription_text = " ".join(captured_lines)
+                
+                # Final cleanup - remove any remaining metadata-like text
+                transcription_text = transcription_text.replace("Transcription", "").strip()
+                for keyword in ["ID:", "Date:", "Source:", "Metadata:", "Generated on"]:
+                    if keyword in transcription_text:
+                        transcription_text = transcription_text.split(keyword)[0].strip()
+                
+                return {
+                    "status": "success",
+                    "content": transcription_text or "No transcription content found in PDF"
+                }
+                
+            except (subprocess.SubprocessError, FileNotFoundError) as e:
+                return JSONResponse(
+                    status_code=500,
+                    content={
+                        "status": "error",
+                        "message": f"Failed to extract text from PDF: {str(e)}. Please install PyPDF2 or pdftotext."
+                    }
+                )
+    except Exception as e:
+        import traceback
+        print(f"Error processing transcription: {str(e)}")
+        print(traceback.format_exc())
+        return JSONResponse(
+            status_code=500,
+            content={
+                "status": "error",
+                "message": f"Failed to process transcription content: {str(e)}"
+            }
+        )
+
 # If the script is run directly, use this as a test
 if __name__ == "__main__":
     print("This module provides video analysis routes for FastAPI")
