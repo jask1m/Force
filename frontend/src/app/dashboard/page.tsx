@@ -265,7 +265,7 @@ export default function Dashboard() {
 
       // Prepare the request body for the process-form endpoint
       const requestBody = {
-        input_path: `data/transcriptions/${selectedTranscription.id}.md`,
+        input_path: `data/transcriptions/${selectedTranscription.id}.pdf`,
         input_path_id: selectedTranscription.id,
         document_path: `data/documents/${
           selectedDocument.path?.split("data/documents/")[1]
