@@ -55,10 +55,10 @@ Fillosophy is a video processing and transcription platform designed to help use
 
    ```bash
    GEMINI_API_KEY="your_gemini_api_key"
-   OPENAI_API_KEY="your_openai_api_key" # Optional
-   LLAMA_CLOUD_API_KEY="your_llama_api_key" # Optional
-   LLAMA_CLOUD_BASE_URL="your_llama_base_url" # Optional
-   GOOGLE_API_KEY="your_google_api_key" # Optional
+   OPENAI_API_KEY="your_openai_api_key"
+   LLAMA_CLOUD_API_KEY="your_llama_api_key"
+   LLAMA_CLOUD_BASE_URL="your_llama_base_url"
+   GOOGLE_API_KEY="your_google_api_key"
    ```
 
 6. Run the backend server
