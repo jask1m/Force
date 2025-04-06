@@ -1,4 +1,4 @@
-# Fillosphy
+# Fillosophy
 
 ## Overview
 
