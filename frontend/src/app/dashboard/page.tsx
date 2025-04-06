@@ -479,7 +479,7 @@ export default function Dashboard() {
                   </p>
                   <div className="bg-gray-100 dark:bg-gray-700 p-4 rounded-md overflow-auto max-h-[60vh]">
                     <pre className="whitespace-pre-wrap text-sm">
-                      {processingResult.result}
+                      {JSON.stringify(processingResult.result, null, 2)}
                     </pre>
                   </div>
                 </div>

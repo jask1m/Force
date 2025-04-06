@@ -165,7 +165,15 @@ class RAGWorkflow(Workflow):
         
         try:
             json_data = json.loads(json_text)
-            fields = json_data["fields"]
+            
+            # Check if the response has a "fields" key
+            if "fields" in json_data:
+                fields = json_data["fields"]
+            else:
+                # If no "fields" key, try to extract field names from the JSON object
+                fields = list(json_data.keys())
+                
+            print(f"Extracted {len(fields)} fields from form")
         except json.JSONDecodeError as e:
             print(f"JSON parsing error: {e}")
             print(f"Problematic JSON text: {json_text}")
@@ -174,7 +182,7 @@ class RAGWorkflow(Workflow):
             field_matches = re.findall(r'"([^"]+)"', json_text)
             if field_matches:
                 fields = field_matches
-                print("Extracted fields using regex:", fields)
+                print(f"Extracted {len(fields)} fields using regex")
             else:
                 raise ValueError(f"Failed to parse JSON: {e}")
 
@@ -217,13 +225,37 @@ class RAGWorkflow(Workflow):
         result = self.llm.complete(f"""
             You are given a list of fields in an application form and responses to
             questions about those fields from {input_context}. Combine the two into a list of
-            fields and succinct, factual answers to fill in those fields.
+            fields and succinct, factual answers to fill in those fields. Return the answer
+            in a JSON object of the form {{ field: "answer" }}.
 
             <responses>
             {responseList}
             </responses>
         """)
-        return StopEvent(result=result.text)
+        
+        # Clean the response text to ensure it's valid JSON
+        json_text = result.text.strip()
+        
+        # Remove any markdown code block indicators if present
+        if json_text.startswith("```json"):
+            json_text = json_text[7:]
+        if json_text.startswith("```"):
+            json_text = json_text[3:]
+        if json_text.endswith("```"):
+            json_text = json_text[:-3]
+        
+        json_text = json_text.strip()
+        
+        try:
+            # Parse the JSON response
+            json_data = json.loads(json_text)
+            # Return the JSON object directly
+            return StopEvent(result=json_data)
+        except json.JSONDecodeError as e:
+            print(f"JSON parsing error: {e}")
+            print(f"Problematic JSON text: {json_text}")
+            # If JSON parsing fails, return the raw text
+            return StopEvent(result=result.text)
 
 
 def get_llama_parser():

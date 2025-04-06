@@ -40,10 +40,10 @@ async def process_form(
             use_existing_index=request.use_existing_index,
             input_filter_ids=request.input_filter_ids
         )
-        
+
         return {
             "success": True,
-            "result": result.result if hasattr(result, 'result') else str(result)
+            "result": result
         }
         
     except Exception as e:
