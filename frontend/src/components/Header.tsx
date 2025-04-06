@@ -1,3 +1,5 @@
+import Image from 'next/image';
+
 export default function Header() {
   return (
     <header className="">
@@ -7,8 +9,11 @@ export default function Header() {
           <p className="text-sm text-muted-foreground">john.doe@example.com</p>
         </div>
         <div className="h-12 w-12 rounded-full bg-muted overflow-hidden">
-          <img
+          <Image
+            src="https://ui-avatars.com/api/?name=John+Doe"
             alt="Profile"
+            width={48}
+            height={48}
             className="h-full w-full object-cover"
             onError={(e) => {
               const target = e.target as HTMLImageElement;

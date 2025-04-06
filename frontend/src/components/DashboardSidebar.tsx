@@ -7,11 +7,9 @@ import {
   FileText,
   Video,
   CheckSquare,
-  User,
-  Settings,
-  LogOut,
   Menu,
-  X
+  X,
+  ClipboardList
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -42,6 +40,11 @@ const DashboardSidebar = ({
       title: 'My Documents',
       icon: <CheckSquare className="h-5 w-5" />,
       path: '/dashboard/documents',
+    },
+    {
+      title: 'Form Filler',
+      icon: <ClipboardList className="h-5 w-5" />,
+      path: '/dashboard/form-filler',
     }
   ];
 

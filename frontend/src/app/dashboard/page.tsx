@@ -49,6 +49,7 @@ interface ProcessingResult {
   success: boolean;
   result?: string;
   error?: string;
+  pdf_url?: string;
 }
 
 export default function Dashboard() {
@@ -258,11 +259,9 @@ export default function Dashboard() {
 
       // Prepare the request body for the process-form endpoint
       const requestBody = {
-        input_path: `data/transcriptions/${selectedTranscription.id}.pdf`,
+        input_path: selectedTranscription.file_path,
         input_path_id: selectedTranscription.id,
-        document_path: `data/documents/${
-          selectedDocument.path?.split("data/documents/")[1]
-        }`,
+        document_path: selectedDocument.path || "",
         use_existing_index: true,
         input_filter_ids: [selectedTranscription.id],
       };
@@ -286,6 +285,7 @@ export default function Dashboard() {
           setProcessingResult({
             success: true,
             result: data.result || "Processing completed successfully.",
+            pdf_url: data.pdf_url
           });
           setShowResults(true);
           setIsProcessing(false);
@@ -306,6 +306,40 @@ export default function Dashboard() {
 
   const closeResults = () => {
     setShowResults(false);
+  };
+
+  const downloadPdf = async (pdfUrl: string) => {
+    try {
+      console.log("Downloading PDF from:", pdfUrl);
+      
+      // Use our proxy API instead of direct backend call
+      const proxyUrl = `/api/download-pdf?url=${encodeURIComponent(pdfUrl)}`;
+      const response = await fetch(proxyUrl);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to download PDF: ${response.status}`);
+      }
+      
+      // Convert response to blob
+      const blob = await response.blob();
+      
+      // Create a URL for the blob
+      const url = window.URL.createObjectURL(blob);
+      
+      // Create a link element and click it to download
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = pdfUrl.split('/').pop() || 'form.pdf';
+      document.body.appendChild(a);
+      a.click();
+      
+      // Clean up
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error("Error downloading PDF:", error);
+      alert("Failed to download the PDF. See console for details.");
+    }
   };
 
   return (
@@ -332,7 +366,7 @@ export default function Dashboard() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
+            <div className="space-y-4 h-80 overflow-y-auto pr-2">
               {Array.isArray(transcriptions) && transcriptions.length > 0 ? (
                 transcriptions.map((transcription) => (
                   <div
@@ -401,7 +435,7 @@ export default function Dashboard() {
             <CardDescription>Select a document to be processed</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
+            <div className="space-y-4 h-80 overflow-y-auto pr-2">
               {Array.isArray(documents) && documents.length > 0 ? (
                 documents.map((document) => (
                   <div
@@ -477,6 +511,16 @@ export default function Dashboard() {
                   <p className="text-green-600 dark:text-green-400">
                     Your form has been processed successfully!
                   </p>
+                  {processingResult.pdf_url && (
+                    <div className="mb-6">
+                      <Button 
+                        className="w-full bg-primary text-primary-foreground hover:bg-primary/90 flex items-center justify-center gap-2"
+                        onClick={() => downloadPdf(processingResult.pdf_url as string)}
+                      >
+                        <FileText className="h-4 w-4" /> Download Official PDF
+                      </Button>
+                    </div>
+                  )}
                   <div className="bg-gray-100 dark:bg-gray-700 p-4 rounded-md overflow-auto max-h-[60vh]">
                     <pre className="whitespace-pre-wrap text-sm">
                       {JSON.stringify(processingResult.result, null, 2)}

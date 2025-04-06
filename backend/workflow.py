@@ -202,10 +202,36 @@ class RAGWorkflow(Workflow):
         input_filter_ids = await ctx.get("input_filter_ids")
         input_context = "the input documents" if len(input_filter_ids) > 1 else "the specific input document"
         
-        response = self.query_engine.query(
-            f"This is a question about {input_context} we have in our database: {ev.query}"
-        )
-        return ResponseEvent(field=ev.field, response=response.response)
+        try:
+            response = self.query_engine.query(
+                f"""This is a question about {input_context} we have in our database: {ev.query}
+                If you cannot find the specific information in the documents, just return an empty string.
+                Do NOT reply with phrases like 'The provided text does not contain...' or 'No information found...'
+                Instead, return a string with just a single space character."""
+            )
+            
+            # Check if the response contains negative phrases indicating no information was found
+            response_text = response.response.lower()
+            if (
+                "not contain" in response_text or
+                "no information" in response_text or
+                "does not mention" in response_text or
+                "doesn't mention" in response_text or
+                "not available" in response_text or
+                "not provided" in response_text or
+                "cannot find" in response_text or
+                "unable to find" in response_text or
+                "doesn't provide" in response_text or
+                "does not provide" in response_text
+            ):
+                # Return a zero-width space (invisible character) if no information was found
+                return ResponseEvent(field=ev.field, response="\u200B")
+            
+            return ResponseEvent(field=ev.field, response=response.response)
+        except Exception as e:
+            print(f"Error querying for field '{ev.field}': {str(e)}")
+            # Return zero-width space on error
+            return ResponseEvent(field=ev.field, response="\u200B")
 
     @step
     async def fill_in_application(self, ctx: Context, ev: ResponseEvent) -> StopEvent:
@@ -225,8 +251,13 @@ class RAGWorkflow(Workflow):
         result = self.llm.complete(f"""
             You are given a list of fields in an application form and responses to
             questions about those fields from {input_context}. Combine the two into a list of
-            fields and succinct, factual answers to fill in those fields. Return the answer
-            in a JSON object of the form {{ field: "answer" }}.
+            fields and succinct, factual answers to fill in those fields.
+
+            IMPORTANT RULES:
+            1. If a response is empty or doesn't contain useful information, use a special invisible character "\u200B" (zero-width space) as the answer.
+            2. DO NOT add explanations like "information not available" - just use the invisible character.
+            3. Never invent or assume information that isn't present.
+            4. Format your response as a JSON object of the form {{ field: "answer" }}.
 
             <responses>
             {responseList}
@@ -249,6 +280,22 @@ class RAGWorkflow(Workflow):
         try:
             # Parse the JSON response
             json_data = json.loads(json_text)
+            
+            # Clean up the values - convert any explanatory phrases to invisible characters
+            for key, value in json_data.items():
+                value_lower = str(value).lower()
+                if (
+                    "not available" in value_lower or
+                    "no information" in value_lower or
+                    "cannot find" in value_lower or
+                    "doesn't mention" in value_lower or
+                    "does not mention" in value_lower or
+                    "not provided" in value_lower or
+                    "does not contain" in value_lower or
+                    "doesn't contain" in value_lower
+                ):
+                    json_data[key] = "\u200B"
+            
             # Return the JSON object directly
             return StopEvent(result=json_data)
         except json.JSONDecodeError as e:

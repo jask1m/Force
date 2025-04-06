@@ -43,6 +43,25 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.8s ease-out forwards;
+}
+
+.animate-on-scroll {
+  opacity: 0;
+}
+
 :root {
   --radius: 0.625rem;
   --background: oklch(1 0 0);
