@@ -41,11 +41,11 @@ const DashboardSidebar = ({
       icon: <CheckSquare className="h-5 w-5" />,
       path: '/dashboard/documents',
     },
-    {
-      title: 'Form Filler',
-      icon: <ClipboardList className="h-5 w-5" />,
-      path: '/dashboard/form-filler',
-    }
+    // {
+    //   title: 'Form Filler',
+    //   icon: <ClipboardList className="h-5 w-5" />,
+    //   path: '/dashboard/form-filler',
+    // }
   ];
 
   return (

@@ -17,8 +17,32 @@ import {
   X,
   User,
 } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import ReactMarkdown from "react-markdown";
+import { MultiStepLoader as Loader } from "@/components/ui/multi-step-loader";
+
+const loadingStates = [
+  {
+    text: "Processing your video",
+  },
+  {
+    text: "Analyzing your transcript",
+  },
+  {
+    text: "Processing your application form",
+  },
+  {
+    text: "Filling out your form",
+  },
+  {
+    text: "Generating your official PDF",
+  },
+];
 
 interface Video {
   id: string;
@@ -60,7 +84,8 @@ export default function Dashboard() {
   const [processingResult, setProcessingResult] =
     useState<ProcessingResult | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [selectedTranscription, setSelectedTranscription] = useState<Transcription | null>(null);
+  const [selectedTranscription, setSelectedTranscription] =
+    useState<Transcription | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [transcriptionContent, setTranscriptionContent] = useState("");
 
@@ -206,7 +231,7 @@ export default function Dashboard() {
     setTranscriptions(updatedTranscriptions);
 
     // Find the selected transcription for display
-    const selected = updatedTranscriptions.find(t => t.id === id);
+    const selected = updatedTranscriptions.find((t) => t.id === id);
     if (selected) {
       setSelectedTranscription(selected);
     }
@@ -216,19 +241,25 @@ export default function Dashboard() {
     try {
       // Get the full file path
       const filePath = transcription.file_path;
-      
+
       if (!filePath) {
         throw new Error("Invalid file path");
       }
 
       // Fetch the transcription content
-      const response = await fetch(`http://localhost:8000/gemini/get-transcription-content?filename=${encodeURIComponent(filePath)}`);
+      const response = await fetch(
+        `http://localhost:8000/gemini/get-transcription-content?filename=${encodeURIComponent(
+          filePath
+        )}`
+      );
 
       if (!response.ok) {
         if (response.status === 404) {
           throw new Error("Transcription file not found");
         } else {
-          throw new Error(`Failed to fetch transcription content (Status: ${response.status})`);
+          throw new Error(
+            `Failed to fetch transcription content (Status: ${response.status})`
+          );
         }
       }
 
@@ -239,12 +270,17 @@ export default function Dashboard() {
         setSelectedTranscription(transcription);
         setIsDialogOpen(true);
       } else {
-        throw new Error(data.message || "Failed to fetch transcription content");
+        throw new Error(
+          data.message || "Failed to fetch transcription content"
+        );
       }
     } catch (error: unknown) {
       console.error("Error fetching transcription content:", error);
-      const errorMessage = error instanceof Error ? error.message : "Unknown error";
-      setTranscriptionContent(`Error loading transcription content: ${errorMessage}`);
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      setTranscriptionContent(
+        `Error loading transcription content: ${errorMessage}`
+      );
       setIsDialogOpen(true);
     }
   };
@@ -285,7 +321,7 @@ export default function Dashboard() {
           setProcessingResult({
             success: true,
             result: data.result || "Processing completed successfully.",
-            pdf_url: data.pdf_url
+            pdf_url: data.pdf_url,
           });
           setShowResults(true);
           setIsProcessing(false);
@@ -311,28 +347,28 @@ export default function Dashboard() {
   const downloadPdf = async (pdfUrl: string) => {
     try {
       console.log("Downloading PDF from:", pdfUrl);
-      
+
       // Use our proxy API instead of direct backend call
       const proxyUrl = `/api/download-pdf?url=${encodeURIComponent(pdfUrl)}`;
       const response = await fetch(proxyUrl);
-      
+
       if (!response.ok) {
         throw new Error(`Failed to download PDF: ${response.status}`);
       }
-      
+
       // Convert response to blob
       const blob = await response.blob();
-      
+
       // Create a URL for the blob
       const url = window.URL.createObjectURL(blob);
-      
+
       // Create a link element and click it to download
-      const a = document.createElement('a');
+      const a = document.createElement("a");
       a.href = url;
-      a.download = pdfUrl.split('/').pop() || 'form.pdf';
+      a.download = pdfUrl.split("/").pop() || "form.pdf";
       document.body.appendChild(a);
       a.click();
-      
+
       // Clean up
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
@@ -344,6 +380,11 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-8 max-w-full mx-auto px-4">
+      <Loader
+        loadingStates={loadingStates}
+        loading={isProcessing}
+        duration={5000}
+      />
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold mb-2">Welcome back</h1>
@@ -400,9 +441,13 @@ export default function Dashboard() {
                         View Transcript
                       </Button>
                       <Button
-                        variant={transcription.selected ? "default" : "secondary"}
+                        variant={
+                          transcription.selected ? "default" : "secondary"
+                        }
                         size="sm"
-                        onClick={() => handleTranscriptionSelect(transcription.id)}
+                        onClick={() =>
+                          handleTranscriptionSelect(transcription.id)
+                        }
                       >
                         {transcription.selected ? "Selected" : "Select"}
                       </Button>
@@ -513,9 +558,11 @@ export default function Dashboard() {
                   </p>
                   {processingResult.pdf_url && (
                     <div className="mb-6">
-                      <Button 
+                      <Button
                         className="w-full bg-primary text-primary-foreground hover:bg-primary/90 flex items-center justify-center gap-2"
-                        onClick={() => downloadPdf(processingResult.pdf_url as string)}
+                        onClick={() =>
+                          downloadPdf(processingResult.pdf_url as string)
+                        }
                       >
                         <FileText className="h-4 w-4" /> Download Official PDF
                       </Button>
@@ -549,7 +596,9 @@ export default function Dashboard() {
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{selectedTranscription?.title || "Transcript"}</DialogTitle>
+            <DialogTitle>
+              {selectedTranscription?.title || "Transcript"}
+            </DialogTitle>
           </DialogHeader>
           <div className="prose prose-sm max-w-none overflow-auto p-4">
             <ReactMarkdown>{transcriptionContent}</ReactMarkdown>
