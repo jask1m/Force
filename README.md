@@ -4,7 +4,6 @@
 [![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.100.0-009688.svg)](https://fastapi.tiangolo.com/)
 [![Next.js](https://img.shields.io/badge/Next.js-13+-000000.svg)](https://nextjs.org/)
-[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 ## Overview 🌟
 
@@ -15,8 +14,8 @@ Fillosophy is a video processing and transcription platform designed to help use
 - 🐍 Python 3.9+
 - 💻 Node.js 18+ and npm
 - 🔑 Google Gemini API key
-- 🤖 (Optional) OpenAI API key
-- 🦙 (Optional) Llama Cloud API key
+- 🤖 OpenAI API key
+- 🦙 Llama Cloud API key
 
 ### Backend Setup ⚙️
 
