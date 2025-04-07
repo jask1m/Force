@@ -9,6 +9,8 @@
 
 Fillosophy is a video processing and transcription platform designed to help users automatically extract and manage transcripts from video recordings. It combines advanced AI capabilities with a user-friendly interface to provide accurate video transcriptions that can be used for various applications such as visa applications, documentation, and content creation.
 
+[Check out the Devpost!](https://devpost.com/software/form-force?_gl=1*paf9ri*_gcl_au*ODgzMTcxODIyLjE3NDM4MDc5ODE.*_ga*Mzg4MTYzNTc3LjE3NDM4MDgwNjE.*_ga_0YHJK3Y10M*MTc0NDA0NzIzMy4xMS4xLjE3NDQwNDcyNDAuMC4wLjA.)
+
 ### Prerequisites 📋
 
 - 🐍 Python 3.13+
